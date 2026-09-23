@@ -1,0 +1,56 @@
+{
+  "name": "rocklea",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.15.0"
+  },
+  "scripts": {
+    "setup:local": "tsx scripts/setup-local.ts",
+    "dev": "tsx --env-file-if-exists=.env apps/backend/main.ts",
+    "bot": "tsx --env-file-if-exists=.env apps/bot/main.ts",
+    "collector": "tsx apps/collector/main.ts",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
+    "simulate:match": "tsx --env-file-if-exists=.env scripts/simulate.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:postgres": "tsx scripts/test-postgres.ts",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "build": "node scripts/build.mjs",
+    "collector:build": "node scripts/package-collector.mjs"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@fastify/cookie": "11.1.2",
+    "@fastify/rate-limit": "11.2.0",
+    "@fastify/static": "10.1.4",
+    "@fastify/swagger": "9.9.0",
+    "discord.js": "14.27.0",
+    "fastify": "5.12.5",
+    "luxon": "3.7.2",
+    "pg": "8.23.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "ws": "8.21.3",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/luxon": "3.7.5",
+    "@types/node": "^22.20.4",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/ws": "8.18.1",
+    "embedded-postgres": "17.10.0-beta.17",
+    "esbuild": "0.28.2",
+    "eslint": "^10.11.0",
+    "postject": "1.0.0-alpha.6",
+    "prettier": "3.9.8",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1",
+    "vitest": "5.0.1"
+  }
+}

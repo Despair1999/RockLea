@@ -1,0 +1,52 @@
+name: Quality and builds
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: rocklea_test
+          POSTGRES_USER: rocklea
+          POSTGRES_PASSWORD: integration-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rocklea -d rocklea_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: npm install -g pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm exec vitest run tests/integration.test.ts
+        env:
+          TEST_DATABASE_URL: postgresql://rocklea:integration-only@localhost:5432/rocklea_test
+      - run: pnpm build
+      - run: pnpm simulate:match
+      - run: docker build -t rocklea:ci .
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: npm install -g pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm collector:build
+      - run: ./release/RLStatsCollector.exe --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RLStatsCollector-Windows-x64
+          path: release/RLStatsCollector.exe
