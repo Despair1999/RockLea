@@ -8,6 +8,10 @@ using System.Windows.Forms;
 using System.Web.Script.Serialization;
 using System.Runtime.InteropServices;
 
+[assembly: System.Reflection.AssemblyTitle("RockLea")]
+[assembly: System.Reflection.AssemblyProduct("RockLea")]
+[assembly: System.Reflection.AssemblyVersion("0.2.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.2.0.0")]
 namespace RockLea {
   static class Program {
     [DllImport("kernel32.dll")] static extern bool AttachConsole(int pid);
