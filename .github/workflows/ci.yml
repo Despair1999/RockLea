@@ -46,7 +46,20 @@ jobs:
       - run: pnpm test
       - run: pnpm collector:build
       - run: ./release/RLStatsCollector.exe --version
+      - name: Build installer with preinstalled Inno Setup
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" scripts/installer.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
+      - name: Verify installer in disposable runner
+        shell: pwsh
+        run: |
+          $testInstallPath = Join-Path $env:RUNNER_TEMP 'RockLeaInstallTest'
+          $installer = Start-Process -FilePath './release/RLStatsCollector-Setup.exe' -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $testInstallPath + '"')) -WindowStyle Hidden -Wait -PassThru
+          if ($installer.ExitCode -ne 0) { throw 'Installer failed.' }
+          & (Join-Path $testInstallPath 'RLStatsCollector.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw 'Installed collector failed.' }
       - uses: actions/upload-artifact@v4
         with:
           name: RLStatsCollector-Windows-x64
-          path: release/RLStatsCollector.exe
+          path: release/*.exe

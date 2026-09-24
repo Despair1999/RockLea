@@ -16,8 +16,8 @@
 
 - Discord-Token, Client-ID, OAuth-Secret und Servereinladung fehlen. Die tatsächliche Zustellung von Discord-Nachrichten und der echte OAuth-Login benötigen diese Konfiguration.
 - Ein echter Rocket-League-Client muss nach der INI-Einrichtung neu gestartet und ein Live-Match beobachtet werden.
-- Docker ist lokal nicht installiert; der Container-Build wird durch GitHub Actions geprüft. Ein lokal erfolgreicher Docker-Test wird nicht behauptet.
-- Die EXE ist unsigned. Die automatische Freigabeprüfung blockierte die Installation des optionalen Inno-Setup-Compilers ohne nähere Begründung. Der eigenständige Collector und ein Installer-Skript werden geliefert; kein gebauter grafischer Installer wird behauptet.
+- Docker ist lokal nicht installiert; der Container-Build wurde erfolgreich durch GitHub Actions geprüft. Ein lokal erfolgreicher Docker-Test wird nicht behauptet.
+- Die EXE ist unsigned. Die lokale Compiler-Installation war blockiert; GitHub Actions verwendet stattdessen den bereits vorinstallierten Inno-Setup-Compiler und prüft die Installation in einem Wegwerf-Runner. EXE und Setup werden als Build-Artefakte veröffentlicht.
 
 ## Bewusste Grenzen und optionale Erweiterungen
 

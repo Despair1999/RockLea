@@ -1,6 +1,7 @@
 [Setup]
 AppName=RockLea Collector
 AppVersion=0.1.0
+ArchitecturesAllowed=x64compatible
 AppPublisher=RockLea
 DefaultDirName={localappdata}\Programs\RockLea
 DefaultGroupName=RockLea

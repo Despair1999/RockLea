@@ -57,7 +57,7 @@ Alternativ dauerhaft in das Benutzerprofil installieren:
 powershell -ExecutionPolicy Bypass -File scripts/install-collector.ps1
 ```
 
-Backend-URL und Pairing-Code eingeben. Steam-/Epic-Installationen werden gesucht, passende INI-Dateien mit Backup angepasst. Änderungen am Spiel erfordern dessen Neustart. Windows-Autostart wird für die installierte EXE eingerichtet. Die EXE ist **nicht codesigniert**. Der optionale grafische Installer wird mit Inno Setup aus `scripts/installer.iss` gebaut.
+Backend-URL und Pairing-Code eingeben. Steam-/Epic-Installationen werden gesucht, passende INI-Dateien mit Backup angepasst. Änderungen am Spiel erfordern dessen Neustart. Windows-Autostart wird für die installierte EXE eingerichtet. Die EXE ist **nicht codesigniert**. Der grafische Installer wird in GitHub Actions mit dem vorinstallierten Inno Setup aus `scripts/installer.iss` gebaut. EXE und Setup stehen beim erfolgreichen Windows-Lauf als Artefakt `RLStatsCollector-Windows-x64` unter [Actions](https://github.com/Despair1999/RockLea/actions) zum Download bereit.
 
 Weitere Optionen: `--version`, `--configure --packet-rate 10`, `--autostart`, `--no-autostart`. Die API bleibt lokal auf `ws://127.0.0.1:49124`; niemals diesen Port am Router freigeben.
 
