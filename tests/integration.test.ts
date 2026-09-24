@@ -36,6 +36,101 @@ afterAll(async () => {
   await db.close();
 });
 describe("PostgreSQL transactions and acceptance scenarios", () => {
+  it("processes tolerant live ticks through the offline outbox and authenticated API", async () => {
+    const { CollectorStream } = await import("../apps/collector/stream.js");
+    const { Outbox, flush } = await import("../apps/collector/outbox.js");
+    const { receive } = await import("../apps/collector/receive.js");
+    const { formatIssue } =
+      await import("../packages/rocket-league-api/diagnostics.js");
+    const liveGuild = "9988776655",
+      liveId = "Epic|00112233445566778899|0";
+    await repo.setup(liveGuild, actor.id);
+    await repo.addMember(liveGuild, actor.id, {
+      discordId: actor.id,
+      displayName: "Registered",
+      name: "RegisteredPilot",
+      platform: "Epic",
+    });
+    const c = await repo.pair(
+      (await repo.pairCode(liveGuild, actor.id)).code,
+      "Live test",
+    );
+    const members = await repo.members(liveGuild),
+      logs: string[] = [],
+      stream = new CollectorStream((i) => logs.push(formatIssue(i))),
+      queue = new Outbox(":memory:");
+    const app = await server(repo, {
+      internalToken: "x".repeat(40),
+      publicUrl: "http://localhost:3000",
+    });
+    try {
+      for (const event of fixture("tolerant-live")) {
+        if (event.Event === "UpdateState") {
+          const players = event.Data.Players as {
+            Name: string;
+            PrimaryId: string;
+          }[];
+          event.Data.Players = [
+            { ...players[0], Name: "RegisteredPilot", PrimaryId: liveId },
+            { Name: "PRIVATE_OPPONENT", PrimaryId: "PRIVATE_BAD_ID" },
+          ];
+          (event.Data.Game as Record<string, unknown>).TimeSeconds = null;
+        }
+        receive(
+          JSON.stringify(event),
+          stream,
+          members,
+          (e) => queue.put(e),
+          (s) => logs.push(s),
+        );
+      }
+      expect(logs.join("\n")).toContain("Data.Players.1.PrimaryId");
+      expect(logs.join("\n")).not.toContain("PRIVATE");
+      expect(JSON.stringify(queue.batch())).not.toContain("PRIVATE");
+      await flush(queue, async (batch) => {
+        const response = await app.inject({
+          method: "POST",
+          url: "/api/v1/collector/events",
+          headers: { authorization: `Bearer ${c.token}` },
+          payload: batch,
+        });
+        expect(response.statusCode, response.body).toBe(200);
+        return response.json();
+      });
+      expect(queue.depth()).toBe(0);
+      const member = (await repo.members(liveGuild))[0];
+      expect(member.identities).toEqual([liveId]);
+      expect(member.pending_name).toBeNull();
+      expect(member.pending_platform).toBeNull();
+      const matches = await repo.matches(liveGuild);
+      expect(matches).toHaveLength(1);
+      expect(matches[0].state.players[liveId].Goals).toBe(3);
+      expect(matches[0].state.sawEnd).toBe(true);
+      expect(JSON.stringify(matches)).not.toContain("PRIVATE");
+      const heartbeat = await app.inject({
+        method: "POST",
+        url: "/api/v1/collector/heartbeat",
+        headers: { authorization: `Bearer ${c.token}` },
+        payload: { gameConnected: true, queueDepth: 0, version: "0.1.1" },
+      });
+      expect(heartbeat.statusCode).toBe(200);
+      const status = (
+        await db.query<{ last_seen_at: Date; status: unknown }>(
+          "SELECT last_seen_at,status FROM collectors WHERE id=$1",
+          [c.id],
+        )
+      )[0];
+      expect(status.last_seen_at).toBeTruthy();
+      expect(status.status).toEqual({
+        gameConnected: true,
+        queueDepth: 0,
+        version: "0.1.1",
+      });
+    } finally {
+      queue.close();
+      await app.close();
+    }
+  });
   it("redeems pairing once, rejects expired and revoked credentials", async () => {
     const p = await repo.pairCode(guild, actor.id);
     const c = await repo.pair(p.code, "One");

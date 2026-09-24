@@ -15,7 +15,7 @@ Privates Rocket-League-Statistiksystem für Discord. Ein Windows-Collector liest
 
 **MMR:** Die aktuelle offizielle API dokumentiert keine MMR. Automatische MMR wird als nicht verfügbar angezeigt. Manuelle Messungen sind ausdrücklich `manual`; ein Provider-Interface ermöglicht spätere verifizierte Quellen.
 
-**Prüfstatus:** 46 automatisierte Tests erfolgreich; die 16 Datenbank-/API-Integrationstests zusätzlich gegen einen echten PostgreSQL-17-Server. Backend, Bot, Dashboard und Windows-EXE gebaut. Browser-Workflows und Simulator geprüft. Externe Live-Abnahme und optionale Erweiterungen stehen in [docs/STATUS.md](docs/STATUS.md). Insbesondere haben seltene identische Events keine verlässliche globale Event-ID in der offiziellen Quelle.
+**Prüfstatus:** 76 automatisierte Tests erfolgreich; die 17 Datenbank-/API-Integrationstests zusätzlich gegen einen echten PostgreSQL-17-Server. Backend, Bot, Dashboard und Windows-EXE gebaut. Browser-Workflows und Simulator geprüft. Externe Live-Abnahme und optionale Erweiterungen stehen in [docs/STATUS.md](docs/STATUS.md). Insbesondere haben seltene identische Events keine verlässliche globale Event-ID in der offiziellen Quelle.
 
 ## Lokal starten
 

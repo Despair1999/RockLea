@@ -12,7 +12,11 @@ import {
   type Player,
 } from "../shared/model.js";
 import { hash, secret, canonical } from "../shared/crypto.js";
-import { sanitize, statePlayers } from "../rocket-league-api/parser.js";
+import {
+  sanitize,
+  statePlayers,
+  matchGuid,
+} from "../rocket-league-api/parser.js";
 import { advance } from "../stats-engine/state.js";
 import { relationships } from "../stats-engine/analytics.js";
 export type MatchRow = {
@@ -268,8 +272,8 @@ export class Repository {
             duplicates++;
             continue;
           }
-          const guid = item.event.Data.MatchGuid;
-          if (typeof guid !== "string" || !guid) continue;
+          const guid = matchGuid(item.event);
+          if (!guid) continue;
           const previous = (
             await q.query<MatchRow>(
               "SELECT * FROM matches WHERE guild_id=$1 AND guid=$2",

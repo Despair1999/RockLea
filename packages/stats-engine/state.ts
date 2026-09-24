@@ -51,18 +51,23 @@ export function advance(
       s.players[p.PrimaryId] = mergePlayer(s.players[p.PrimaryId], p);
     const game = gameOf(event);
     // Scoreboards are monotonic; a delayed second collector cannot roll scores back.
-    const oldScores = new Map(
-      s.game.Teams?.map((t) => [t.TeamNum, t.Score]) ?? [],
-    );
-    if (game.Teams)
-      game.Teams = game.Teams.map((t) => ({
-        ...t,
-        Score: Math.max(t.Score, oldScores.get(t.TeamNum) ?? 0),
-      }));
+    const teams = new Map(s.game.Teams?.map((t) => [t.TeamNum, t]) ?? []);
+    if (game.Teams) {
+      for (const t of game.Teams)
+        teams.set(t.TeamNum, {
+          ...t,
+          Score: Math.max(t.Score, teams.get(t.TeamNum)?.Score ?? 0),
+        });
+      game.Teams = [...teams.values()];
+    }
+    const overtime =
+      s.game.bOvertime === true || game.bOvertime === true
+        ? true
+        : (game.bOvertime ?? s.game.bOvertime);
     s.game = {
       ...s.game,
       ...game,
-      bOvertime: Boolean(s.game.bOvertime || game.bOvertime),
+      ...(overtime === undefined ? {} : { bOvertime: overtime }),
     };
     if (game.bHasWinner && ["Blue", "Orange"].includes(game.Winner ?? ""))
       s.winner = game.Winner === "Blue" ? 0 : 1;

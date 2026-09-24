@@ -8,26 +8,23 @@ import {
   type Member,
   type Game,
 } from "../shared/model.js";
+import { type IssueReporter } from "./diagnostics.js";
 export const knownEvents = new Set(
   "UpdateState BallHit BoostPickup ClockUpdatedSeconds CountdownBegin CrossbarHit GoalReplayEnd GoalReplayStart GoalReplayWillEnd GoalScored MatchCreated MatchDestroyed MatchEnded MatchInitialized MatchPaused MatchUnpaused PlayerJoined PlayerLeft PodiumStart ReplayCreated RoundStarted StatfeedEvent".split(
     " ",
   ),
 );
+const teamSchema = z.object({
+  TeamNum: z.number().int(),
+  Score: z.number().int().nonnegative(),
+});
 const gameSchema = z.object({
-  Teams: z
-    .array(
-      z.object({
-        TeamNum: z.number().int(),
-        Score: z.number().int().nonnegative(),
-      }),
-    )
-    .max(8)
-    .optional(),
+  Teams: z.array(teamSchema).max(8).optional(),
   PlaylistId: z.number().int().optional(),
   TimeSeconds: z.number().finite().optional(),
   bOvertime: z.boolean().optional(),
   bHasWinner: z.boolean().optional(),
-  Winner: z.enum(["Blue", "Orange", ""]).optional(),
+  Winner: z.string().max(128).optional(),
   Arena: z.string().max(128).optional(),
   bReplay: z.boolean().optional(),
 });
@@ -49,18 +46,30 @@ export function sanitize(
   event: Envelope,
   members: Member[],
   observed: Player[] = [],
+  report?: IssueReporter,
+  blockedReferences: Set<string> = new Set(),
 ): Envelope {
   const raw = event.Data;
   const Data: Record<string, unknown> = {};
-  if (typeof raw.MatchGuid === "string" && raw.MatchGuid.length <= 128)
-    Data.MatchGuid = raw.MatchGuid;
+  const guid = matchGuid(event);
+  if (!guid) return { Event: event.Event, Data };
+  Data.MatchGuid = guid;
   if (event.Event === "UpdateState") {
-    const players = z
-      .array(playerSchema)
-      .max(64)
-      .parse(raw.Players) as Player[];
-    Data.Players = players.filter((p) => eligible(p, members));
-    Data.Game = gameSchema.parse(raw.Game);
+    const players = statePlayers(event, report);
+    const invalid = invalidPlayers(event);
+    Data.Players = players.filter(
+      (p) =>
+        eligible(p, members) &&
+        (members.some((m) => m.active && m.identities.includes(p.PrimaryId)) ||
+          !invalid.some(
+            (r) =>
+              r.Name === p.Name &&
+              (typeof r.PrimaryId !== "string" ||
+                !r.PrimaryId.includes("|") ||
+                r.PrimaryId.split("|")[0] === p.PrimaryId.split("|")[0]),
+          )),
+    );
+    Data.Game = gameOf(event, report);
   }
   function ref(value: unknown): unknown {
     if (!value || typeof value !== "object") return undefined;
@@ -72,7 +81,11 @@ export function sanitize(
           p.TeamNum === r.TeamNum &&
           (r.Shortcut === undefined || p.Shortcut === r.Shortcut),
     );
-    if (candidates.length !== 1 || !eligible(candidates[0], members))
+    if (
+      candidates.length !== 1 ||
+      blockedReferences.has(candidates[0].PrimaryId) ||
+      !eligible(candidates[0], members)
+    )
       return undefined;
     const p = candidates[0];
     return { PrimaryId: p.PrimaryId, Name: p.Name, TeamNum: p.TeamNum };
@@ -146,10 +159,71 @@ export function sanitize(
   }
   return { Event: event.Event, Data };
 }
-export function statePlayers(event: Envelope): Player[] {
-  return event.Event === "UpdateState"
-    ? (z.array(playerSchema).max(64).parse(event.Data.Players) as Player[])
-    : [];
+export function matchGuid(event: Envelope): string | undefined {
+  const value = event.Data.MatchGuid;
+  return typeof value === "string" &&
+    value.length <= 128 &&
+    value.trim().length > 0
+    ? value
+    : undefined;
+}
+function invalidPlayers(event: Envelope): Record<string, unknown>[] {
+  if (event.Event !== "UpdateState" || !Array.isArray(event.Data.Players))
+    return [];
+  return event.Data.Players.slice(0, 64).filter(
+    (raw): raw is Record<string, unknown> =>
+      !!raw &&
+      typeof raw === "object" &&
+      !Array.isArray(raw) &&
+      !playerSchema.safeParse(raw).success,
+  );
+}
+/** Invalid peers still prevent name-only reference guessing; hints remain in RAM only. */
+export function ambiguousReferences(
+  event: Envelope,
+  players: Player[],
+): Set<string> {
+  const invalid = invalidPlayers(event);
+  return new Set(
+    players
+      .filter((p) =>
+        invalid.some(
+          (r) =>
+            r.PrimaryId === p.PrimaryId ||
+            (r.Name === p.Name &&
+              (r.TeamNum === undefined || r.TeamNum === p.TeamNum) &&
+              (r.Shortcut === undefined || r.Shortcut === p.Shortcut)),
+        ),
+      )
+      .map((p) => p.PrimaryId),
+  );
+}
+export function statePlayers(
+  event: Envelope,
+  report?: IssueReporter,
+): Player[] {
+  if (event.Event !== "UpdateState" || !matchGuid(event)) return [];
+  const array = z.array(z.unknown()).max(64).safeParse(event.Data.Players);
+  if (!array.success)
+    throw new z.ZodError(
+      array.error.issues.map((issue) => ({
+        ...issue,
+        path: ["Data", "Players", ...issue.path],
+      })),
+    );
+  const players: Player[] = [];
+  array.data.forEach((raw, index) => {
+    const player = playerSchema.safeParse(raw);
+    if (player.success) players.push(player.data as Player);
+    else
+      report?.({
+        event: event.Event,
+        scope: "player",
+        path: ["Data", "Players", index],
+        issues: player.error.issues,
+      });
+  });
+  return players;
 }
 export function mergePlayer(old: Player | undefined, next: Player): Player {
   const merged = { ...old, ...next };
@@ -160,6 +234,43 @@ export function mergePlayer(old: Player | undefined, next: Player): Player {
   }
   return merged;
 }
-export function gameOf(event: Envelope): Game {
-  return gameSchema.parse(event.Data.Game);
+export function gameOf(event: Envelope, report?: IssueReporter): Game {
+  if (event.Data.Game === undefined) return {};
+  const object = z.record(z.string(), z.unknown()).safeParse(event.Data.Game);
+  if (!object.success) {
+    report?.({
+      event: event.Event,
+      scope: "game",
+      path: ["Data", "Game"],
+      issues: object.error.issues,
+    });
+    return {};
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, schema] of Object.entries(gameSchema.shape)) {
+    if (object.data[key] === undefined) continue;
+    const value = schema.safeParse(object.data[key]);
+    if (value.success) out[key] = value.data;
+    else {
+      report?.({
+        event: event.Event,
+        scope: "game",
+        path: ["Data", "Game", key],
+        issues: value.error.issues,
+      });
+      // A malformed team must not erase the other team's valid score.
+      if (
+        key === "Teams" &&
+        Array.isArray(object.data.Teams) &&
+        object.data.Teams.length <= 8
+      ) {
+        const valid = object.data.Teams.flatMap((raw) => {
+          const team = teamSchema.safeParse(raw);
+          return team.success ? [team.data] : [];
+        });
+        if (valid.length) out.Teams = valid;
+      }
+    }
+  }
+  return out as Game;
 }

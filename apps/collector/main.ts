@@ -15,6 +15,12 @@ import { hostname } from "node:os";
 import { z } from "zod";
 import { Outbox, backoff, flush } from "./outbox.js";
 import { findInstallations, configure, protect, autostart } from "./windows.js";
+import { receive } from "./receive.js";
+import { Heartbeat } from "./heartbeat.js";
+import {
+  diagnosticLogger,
+  formatIssue,
+} from "../../packages/rocket-league-api/diagnostics.js";
 import { CollectorStream } from "./stream.js";
 import { type Member } from "../../packages/shared/model.js";
 const dir = join(process.env.LOCALAPPDATA ?? process.cwd(), "RockLea");
@@ -24,9 +30,15 @@ const logPath = join(dir, "collector.log");
 function log(message: string) {
   const line = JSON.stringify({ time: new Date().toISOString(), message });
   console.log(message);
-  if (existsSync(logPath) && statSync(logPath).size > 2_000_000)
-    renameSync(logPath, `${logPath}.1`);
-  appendFileSync(logPath, line + "\n");
+  try {
+    if (existsSync(logPath) && statSync(logPath).size > 2_000_000)
+      renameSync(logPath, `${logPath}.1`);
+    appendFileSync(logPath, line + "\n");
+  } catch {
+    console.warn(
+      "Logdatei konnte nicht geschrieben werden; Datenträger prüfen.",
+    );
+  }
 }
 function backendUrl(raw: string) {
   const u = new URL(raw);
@@ -42,7 +54,7 @@ function backendUrl(raw: string) {
 }
 async function main() {
   if (process.argv.includes("--version")) {
-    console.log("RLStatsCollector 0.1.0");
+    console.log("RLStatsCollector 0.1.1");
     return;
   }
   if (process.argv.includes("--configure")) {
@@ -107,9 +119,11 @@ async function main() {
   backendUrl(config.backend);
   const queue = new Outbox(join(dir, "outbox.sqlite"));
   let members = queue.get<Member[]>("roster") ?? [];
-  let stream = new CollectorStream();
-  let gameConnected = false,
-    stopping = false,
+  const report = diagnosticLogger(log);
+  const makeStream = () =>
+    new CollectorStream((issue) => report(formatIssue(issue)));
+  let stream = makeStream();
+  let stopping = false,
     attempt = 0,
     lastRoster = 0;
   let socket: WebSocket | undefined;
@@ -126,6 +140,17 @@ async function main() {
     if (!response.ok) throw new Error(`Backend HTTP ${response.status}`);
     return response.json();
   }
+  const heartbeat = new Heartbeat(
+    () => ({
+      gameConnected: socket?.readyState === WebSocket.OPEN,
+      queueDepth: queue.depth(),
+      version: "0.1.1",
+    }),
+    (status) => request("heartbeat", status),
+    () => report("Heartbeat fehlgeschlagen; neuer Versuch folgt."),
+  );
+  const heartbeatTimer = setInterval(() => void heartbeat.tick(), 5000);
+  void heartbeat.tick();
   function connect() {
     if (stopping) return;
     socket = new WebSocket("ws://127.0.0.1:49124", {
@@ -133,27 +158,29 @@ async function main() {
       handshakeTimeout: 5000,
     });
     socket.on("open", () => {
-      gameConnected = true;
-      stream = new CollectorStream();
+      stream = makeStream();
+      void heartbeat.tick();
       log("Rocket League Stats API verbunden.");
     });
     socket.on("message", (raw) => {
-      try {
-        for (const clean of stream.accept(raw.toString(), members))
-          queue.put(clean);
-      } catch {
-        log("Ungültiges Event oder voller Puffer; Status prüfen.");
-      }
+      receive(
+        raw.toString(),
+        stream,
+        members,
+        (event) => queue.put(event),
+        report,
+      );
     });
     socket.on("error", () => {});
     socket.on("close", () => {
-      gameConnected = false;
+      void heartbeat.tick();
       if (!stopping) setTimeout(connect, 5000);
     });
   }
   connect();
   const stop = () => {
     stopping = true;
+    clearInterval(heartbeatTimer);
     socket?.close();
   };
   process.on("SIGINT", stop);
@@ -164,11 +191,6 @@ async function main() {
         members = (await request("roster")) as Member[];
         queue.set("roster", members);
         lastRoster = Date.now();
-        await request("heartbeat", {
-          gameConnected,
-          queueDepth: queue.depth(),
-          version: "0.1.0",
-        });
       }
       await flush(queue, async (batch) =>
         z

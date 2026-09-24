@@ -31,3 +31,27 @@ Unsigned-Build kann von SmartScreen angezeigt werden; der Build besitzt keine He
 ## Unerwartete Statistik
 
 `quality` prüfen: complete, partial, recovered, invalid. Match ohne MatchEnded wird nicht als sicher vollständig behauptet. Eventbasierte Geschwindigkeiten sind Rohwerte, keine km/h. Fehlende MMR ist erwartetes Verhalten. Eventcounts können bei Beobachtungslücken unvollständig sein. Server-Siege sind Mitgliedsergebnisse; gemeinsame Matches werden für die Server-Matchzahl nur einmal gezählt.
+
+## „Ungültiges Event oder voller Puffer“ aus älteren Collectorn
+
+Collector 0.1.1 trennt die Ursachen. Beispiele:
+
+```text
+Teilobjekt übersprungen (UpdateState, Schema/Spieler): Data.Players.2.PrimaryId: Ungültiges Format (1 Fehler)
+Event verworfen (UpdateState): Schema: Data.Players: Ungültiger oder fehlender Datentyp (1 Fehler)
+Outbox-Schreibfehler (UpdateState): Kapazitätsgrenze erreicht; Backend-Verbindung prüfen. Event nicht gespeichert.
+```
+
+„Teilobjekt übersprungen“ bedeutet, dass andere gültige Spieler/Felder weiterverarbeitet werden. „Event verworfen“ betrifft einen strukturell unbrauchbaren Tick, z. B. ein nicht vorhandenes Spielerarray. Outbox-Fehler betreffen den lokalen Speicher; bereits gepufferte Daten nicht löschen. Ein voller Puffer fasst höchstens 100.000 Deliveries. Erneut Backend-Verbindung herstellen und Speicherplatz/Berechtigungen prüfen.
+
+Schema-Diagnosen enthalten maximal drei Feldpfade sowie die Gesamtfehlerzahl. Wiederholungen werden pro Meldung für eine Minute zusammengefasst; zusätzlich maximal 20 Detailmeldungen pro Minute. Die nächste Ausgabe nennt unterdrückte Meldungen. Unbekannte Eventnamen, unbekannte Schlüssel, Zod-Rohmeldungen und JSON-Fehlerausschnitte werden nicht ausgegeben, weil darin private Werte stehen könnten.
+
+`/collector status`: `gameConnected` stammt direkt aus dem WebSocket-OPEN-Zustand. Heartbeats laufen unabhängig vom Upload und der Roster-Aktualisierung: bei Zustandswechseln, sonst alle 60 Sekunden; nach Fehlern wird im Fünfsekundentakt erneut geprüft. Backend-Zeit `last_seen_at`, aktuelle `queueDepth` und Version werden aktualisiert. Ein Online-Collector allein beweist kein erfolgreich verarbeitetes Match.
+
+## Update auf 0.1.1 ohne erneutes Pairing
+
+Im **Git-Checkout** auf `main`: `git pull --ff-only`, `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm collector:build`. Bei einer heruntergeladenen ZIP-Kopie ohne `.git` funktioniert `git pull` nicht: den vorhandenen Git-Checkout verwenden oder die geprüften Quelldateien aus dem neuen Stand übernehmen. `.env`, `data` und bestehende Credentials dabei bewahren.
+
+Backend und Bot mit dem neuen Build neu starten. Alte Collector-EXE beenden und die neue EXE am bisherigen Installationsort ersetzen. Alternativ den neuen Installer verwenden; dabei die optionale erneute Einrichtung am Ende abwählen. **Nicht `--setup` aufrufen**, wenn das vorhandene Pairing beibehalten werden soll. `%LOCALAPPDATA%\RockLea\credentials.dpapi` und `outbox.sqlite` unverändert lassen; Start unter demselben Windows-Nutzer. Keine Datenbankmigration ist für diese Reparatur nötig.
+
+Rocket League vollständig neu starten, Collector starten und ein Online-Match spielen. Danach `/collector status` (Version 0.1.1), `/member detect`, `/member info`, `/match latest` und `/stats member` prüfen. Keine künstliche PrimaryId aus einem Anzeigenamen eintragen. Falls ein Feld weiter verworfen wird, nur die neue minimierte Diagnose teilen, niemals komplette Live-Payloads oder Tokens.

@@ -2,6 +2,12 @@ import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import { type Delivery, type Envelope } from "../../packages/shared/model.js";
 import { canonical, hash } from "../../packages/shared/crypto.js";
+export class OutboxFullError extends Error {
+  constructor() {
+    super("Offline-Puffer voll.");
+    this.name = "OutboxFullError";
+  }
+}
 export class Outbox {
   private db: DatabaseSync;
   constructor(path: string) {
@@ -11,8 +17,7 @@ export class Outbox {
     );
   }
   put(event: Envelope, occurredAt = new Date().toISOString()) {
-    if (this.depth() > 100000)
-      throw new Error("Offline-Puffer voll. Backend-Verbindung prüfen.");
+    if (this.depth() >= 100000) throw new OutboxFullError();
     const matchPrefix = `${String(event.Data.MatchGuid)}:`;
     const fingerprint = matchPrefix + hash(canonical(event));
     this.db.exec("BEGIN IMMEDIATE");

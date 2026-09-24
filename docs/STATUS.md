@@ -8,7 +8,7 @@
 - Statistiken, Duo-/Trio-Auswertung, Leaderboards, Rekorde inklusive beobachteter Geschwindigkeiten, Sessions, konfigurierbare Achievements und Tages-/Wochen-/Monatsrückblicke.
 - Rating-Provider-Vertrag, manuelle Messungen und Verlauf; keine erfundene automatische MMR.
 - Privacy-Export und Löschung einschließlich früher entfernter Identitäten, Whitelist vor lokaler Persistierung und erneute Backend-Prüfung.
-- 46 automatisierte Tests, zusätzlich 16 Integrationstests gegen einen echten lokalen PostgreSQL-17-Server. Typecheck, ESLint, Builds und Simulator erfolgreich; Abhängigkeitsscan ohne bekannte Schwachstellen zum Prüfzeitpunkt.
+- 76 automatisierte Tests, zusätzlich 17 Integrationstests gegen einen echten lokalen PostgreSQL-17-Server. Typecheck, ESLint, Builds und Simulator erfolgreich; Abhängigkeitsscan ohne bekannte Schwachstellen zum Prüfzeitpunkt.
 - Browserprüfung mit isolierten Testdaten: Übersicht, Mitgliederregistrierung und Duo-Auswertung. Keine Testdaten im Produktivpfad.
 - Windows-EXE gebaut und `--version` ausgeführt. Die verwendete Node-22-Runtime meldet SQLite noch als experimentell.
 
@@ -31,3 +31,13 @@
 - Die offizielle API liefert nicht für jedes Event eine global eindeutige ID. Matches und Scoreboard-Snapshots sind dedupliziert; bei identischen, unterschiedlich vollständig beobachteten Ereignisfolgen können Eventstatistiken abweichen. Discord-Nonce und gespeicherte Message-IDs begrenzen doppelte Posts, garantieren bei unklaren Netzwerkfehlern aber kein universelles Exactly-once.
 
 Nicht verfügbare Messwerte bleiben nicht verfügbar. Ein vollständig live-abgenommenes Produktionssystem wird erst nach den externen Prüfungen behauptet.
+
+## Collector-Reparatur 0.1.1 (24.09.2026)
+
+Ausgangsstand vor Änderungen geprüft: `9a33cd28230234ffddaee5b3ed8977725505f234`. Die Desktop-ZIP-Kopie enthielt dieselben 68 versionierten Dateien; keine zusätzlichen funktionalen Änderungen, Löschungen oder ungepushten RockLea-Commits. Daher kein leerer Sicherungs-Commit; `git push origin HEAD:main` bestätigte „Everything up-to-date“. `.env`, Datenbanken, Credentials, Logs, Abhängigkeiten und Build-Artefakte bleiben lokal. Im ursprünglichen Workspace vorhandene fremde Arcadoryx/Hundredfold-Dateien wurden weder übernommen noch gelöscht. Die Reparatur baut in einem Git-Worktree auf `main` exakt auf diesem Stand auf.
+
+Nachweisbare Codeursachen: Ganzarray-Validierung verwirft gültige Mitspieler zusammen mit einem fehlerhaften Spieler; vollständiges Game-Parsing verwirft verwertbare Teilinformationen; das bisher dauerhaft gesetzte Replay-Flag konnte ein Live-Match nach einer Torwiederholung aussperren. Welches konkrete Live-Feld beim Betreiber die ursprüngliche Meldung auslöste, ist mangels datensparsamer Alt-Diagnose nicht nachgewiesen.
+
+Behoben: Einzelspieler-Validierung, Game-Feldprojektion, frühe MatchGuid-Prüfung, getrennte Schema-/Outbox-Diagnosen, begrenztes Logvolumen, Torreplay-Fortsetzung und unabhängiger Heartbeat. Privacy-Filter, reale PrimaryIds, Tick-Drosselung, letzter Snapshot, Offline-Wiederholung und Match-Deduplizierung bleiben getestet. Dashboard und Datenbankschema bleiben unverändert.
+
+Automatisierte Abnahme: 76 Tests einschließlich 30 neuer Regressions-/Integrationstests; 17 Datenbanktests zusätzlich gegen PostgreSQL 17. Keine bestehenden Tests entfernt oder abgeschwächt. Typecheck, ESLint, Backend-/Bot-/Dashboard-Build und Windows-Collector-Build geprüft. Ein echter Rocket-League-Livetest der Reparatur wird nicht behauptet.
