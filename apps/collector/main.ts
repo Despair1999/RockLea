@@ -54,7 +54,7 @@ function backendUrl(raw: string) {
 }
 async function main() {
   if (process.argv.includes("--version")) {
-    console.log("RLStatsCollector 0.1.1");
+    console.log("RLStatsCollector 0.1.2");
     return;
   }
   if (process.argv.includes("--configure")) {
@@ -144,7 +144,7 @@ async function main() {
     () => ({
       gameConnected: socket?.readyState === WebSocket.OPEN,
       queueDepth: queue.depth(),
-      version: "0.1.1",
+      version: "0.1.2",
     }),
     (status) => request("heartbeat", status),
     () => report("Heartbeat fehlgeschlagen; neuer Versuch folgt."),

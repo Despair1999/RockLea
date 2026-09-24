@@ -28,8 +28,30 @@ const gameSchema = z.object({
   Arena: z.string().max(128).optional(),
   bReplay: z.boolean().optional(),
 });
+export function plainObject(value: unknown): value is Record<string, unknown> {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    (Object.getPrototypeOf(value) === Object.prototype ||
+      Object.getPrototypeOf(value) === null)
+  );
+}
+/** The wire protocol also sends Data as one JSON-encoded object. Never decode recursively. */
 export function parse(input: unknown): Envelope {
-  return envelope.parse(typeof input === "string" ? JSON.parse(input) : input);
+  const raw: unknown = typeof input === "string" ? JSON.parse(input) : input;
+  if (!plainObject(raw)) return envelope.parse(raw);
+  let data: unknown = raw.Data;
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      data = undefined;
+    }
+  }
+  return envelope.parse({
+    Event: raw.Event,
+    Data: plainObject(data) ? data : undefined,
+  });
 }
 export function eligible(p: Player, members: Member[]) {
   const active = members.filter((m) => m.active);

@@ -31,3 +31,16 @@ Das Game-Objekt wird feldweise projiziert. Fehlende Werte bleiben fehlend; fehle
 **Torwiederholung versus History-Replay:** `Game.bReplay` gilt laut offizieller Dokumentation für beide. Eine normale Torwiederholung darf deshalb keine permanente History-Sperre setzen. Replay-Ticks/Eventkopien werden übersprungen; nach `GoalReplayEnd`, `RoundStarted` oder einem expliziten Live-Tick wird weiterverarbeitet. `ReplayCreated` markiert dagegen die History-Wiedergabe. Der letzte gepufferte Live-Snapshot bleibt vor `MatchEnded`/`MatchDestroyed` erhalten.
 
 Die Whitelist greift weiterhin vor SQLite und vor Netzwerkübertragung sowie erneut im Backend. Logs enthalten ausschließlich bekannte Eventnamen, erlaubte Feldpfade, Fehlerkategorien und Zähler; keine Rohpayloads, Namen, Identitätswerte oder Tokens. Es gibt weiterhin keine automatische MMR-Quelle.
+
+## Live-Envelope-Korrektur 0.1.2
+
+Am 24.09.2026 wurde am lokalen Stats-WebSocket strukturell nachgewiesen:
+`Data` ist bei UpdateState und BallHit ein String, dessen einmaliges JSON.parse
+ein Objekt ergibt. Es wurden keine Payloads/Spielerinformationen gespeichert.
+Der Wire-Parser akzeptiert Objekt oder einmal JSON-kodiertes Objekt; intern
+bleibt Data ein strikt geprüftes Record. Arrays/null/primitive/doppelt kodierte
+Werte werden verworfen. Fehlerdiagnosen enthalten ausschließlich Struktur.
+Ein 10-Sekunden-Probelauf mit dem korrigierten Parser verarbeitete 120 echte
+Training-Events: 120 ohne MatchGuid, 0 Parserfehler, 0 projizierte Outbox-Events.
+Das ist kein Nachweis eines vollständigen Online-Matches.
+Validierung: 114 Tests, 17 PostgreSQL-Integrationstests, Typecheck, Lint und Build.

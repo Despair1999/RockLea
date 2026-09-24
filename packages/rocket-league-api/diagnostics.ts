@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { knownEvents } from "./parser.js";
+import { knownEvents, plainObject } from "./parser.js";
 import { metrics } from "../shared/model.js";
 
 export type ParseIssue = {
@@ -79,7 +79,32 @@ export function parserFailure(raw: string, error: unknown) {
       : error instanceof SyntaxError
         ? "JSON: Ungültige JSON-Nachricht"
         : "Parser: Interner Verarbeitungsfehler";
-  return `Event verworfen (${eventLabel(event)}): ${reason}`;
+  return `Event verworfen (${eventLabel(event)}): ${reason}; ${envelopeStructure(raw)}`;
+}
+
+/** Structural facts only. No keys, values, player identities or raw parser errors. */
+export function envelopeStructure(raw: string): string {
+  try {
+    const input: unknown = JSON.parse(raw);
+    if (!plainObject(input)) return "Envelope: kein Objekt";
+    const data = input.Data;
+    let jsonObject = false;
+    if (typeof data === "string") {
+      try {
+        jsonObject = plainObject(JSON.parse(data));
+      } catch {
+        /* structural only */
+      }
+    }
+    return (
+      `Envelope ${eventLabel(input.Event)}: Data runtime type=${typeof data}, array=${Array.isArray(data)}, null=${data === null}` +
+      (typeof data === "string"
+        ? `, length=${data.length}, jsonObject=${jsonObject}`
+        : "")
+    );
+  } catch {
+    return "Envelope: ungültiges JSON";
+  }
 }
 
 /** Bounded coalescing: malformed ticks cannot fill the rotating log every frame. */
