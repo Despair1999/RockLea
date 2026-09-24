@@ -1,3 +1,4 @@
+import { HostError } from "./errors.js";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { hostname } from "node:os";
@@ -11,9 +12,27 @@ export async function prepareData(dir: string, config: HostConfig) {
   const path = join(dir, "data", "backend"),
     credentials = join(dir, "credentials.dpapi");
   if (existsSync(credentials) && !existsSync(path))
-    throw new Error(
+    throw new HostError(
       "Vorhandenes Pairing erkannt: zuerst die alte Datenbank importieren. Es wird keine leere Datenbank angelegt.",
     );
+  if (existsSync(credentials)) {
+    const previousPair = JSON.parse(
+      protect(readFileSync(credentials, "utf8"), false),
+    ) as { guildId?: unknown; backend?: unknown };
+    if (previousPair.guildId !== config.guildId)
+      throw new HostError(
+        "Das bestehende Pairing gehört zu einem anderen Discord-Server. Die zugehörige Server-ID und Datenbank verwenden.",
+      );
+    if (
+      typeof previousPair.backend !== "string" ||
+      !["localhost", "127.0.0.1"].includes(
+        new URL(previousPair.backend).hostname,
+      )
+    )
+      throw new HostError(
+        "Bestehendes Pairing nutzt einen externen Server. Dafür den separaten Collector-/Serverbetrieb weiterverwenden.",
+      );
+  }
   const marker = join(dir, "data-version");
   const previous = existsSync(marker) ? readFileSync(marker, "utf8") : "";
   if (existsSync(path) && previous !== VERSION) backup(dir);

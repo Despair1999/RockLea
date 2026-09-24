@@ -13,6 +13,7 @@ namespace RockLea {
     [DllImport("kernel32.dll")] static extern bool AttachConsole(int pid);
     [STAThread] static int Main(string[] args) {
       if (Array.IndexOf(args,"--version")>=0) { AttachConsole(-1); Console.WriteLine("RockLea 0.2.0"); return 0; }
+      if (Array.IndexOf(args,"--no-autostart")>=0) { using(var key=Microsoft.Win32.Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run",true)) { if(key!=null)key.DeleteValue("RockLea",false); } return 0; }
       if (Array.IndexOf(args,"--smoke")>=0) return Smoke.Run();
       bool created; using(var mutex=new Mutex(true,"Local\\RockLea",out created)) {
         if(!created) { try {EventWaitHandle.OpenExisting("Local\\RockLea-Focus-"+Environment.UserName).Set();} catch {MessageBox.Show("RockLea läuft bereits.","RockLea");} return 0; }
@@ -23,7 +24,7 @@ namespace RockLea {
   }
   class MainWindow : Form {
     Process host; NotifyIcon tray; Label status,notice; Button update; CheckBox autostart;
-    JavaScriptSerializer json=new JavaScriptSerializer(); bool quitting=false,hostReady=false; int port=3000; string pendingInstaller;
+    JavaScriptSerializer json=new JavaScriptSerializer(); bool quitting=false,hostReady=false,dashboardPending=false; int port=3000; string pendingInstaller;
     EventWaitHandle focus=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\RockLea-Focus-"+Environment.UserName);
     System.Windows.Forms.Timer timer=new System.Windows.Forms.Timer();
     Dictionary<string,object> settings=new Dictionary<string,object>();
@@ -49,7 +50,7 @@ namespace RockLea {
     Button AddButton(string text,int x,int y,Action action){var b=new Button{Text=text,Location=new Point(x,y),Size=new Size(180,36),FlatStyle=FlatStyle.Flat,BackColor=Color.FromArgb(30,43,62)};b.Click+=(s,e)=>action();Controls.Add(b);return b;}
     void ShowWindow(){Show();WindowState=FormWindowState.Normal;Activate();}
     void OpenPath(string path){try{Process.Start(new ProcessStartInfo(path){UseShellExecute=true});}catch{notice.Text="Ordner/Browser konnte nicht geöffnet werden.";}}
-    void Dashboard(){if(!hostReady){notice.Text="Backend startet noch. Sobald es online ist, Dashboard öffnen.";return;}OpenPath("http://localhost:"+port);}
+    void Dashboard(){if(!hostReady){dashboardPending=true;notice.Text="Backend startet noch. Dashboard wird danach geöffnet.";return;}dashboardPending=false;OpenPath("http://localhost:"+port);}
     void StartHost(){
       try{
         string root=AppDomain.CurrentDomain.BaseDirectory;
@@ -80,6 +81,7 @@ namespace RockLea {
         if(key=="collector")text+="Rocket League    "+(Get(component,"gameConnected")=="True"?"Verbunden":"Wartet")+"   •   Puffer: "+Get(component,"queueDepth","0");
       }
       status.Text=text;string version=Get(msg,"update");update.Enabled=version!="";if(version!="")notice.Text="Neue Version verfügbar: "+version;
+      if(hostReady&&dashboardPending)Dashboard();
       if(Get(msg,"configured")=="False"&&!setupOpen&&!setupOffered){notice.Text="Einmalig einrichten oder bestehende Installation importieren.";settings=new Dictionary<string,object>();setupOffered=true;Setup();}
     }
     bool setupOpen=false, setupOffered=false;
@@ -95,7 +97,7 @@ namespace RockLea {
         }
         var redirect=new Label{Text="OAuth Redirect: http://localhost:"+fields["port"].Text+"/auth/callback",Location=new Point(24,345),Size=new Size(518,44)};form.Controls.Add(redirect);fields["port"].TextChanged+=(s,e)=>redirect.Text="OAuth Redirect: http://localhost:"+fields["port"].Text+"/auth/callback";
         form.Controls.Add(new Label{Text="Secrets werden mit Windows DPAPI verschlüsselt.\nLeere Secret-Felder behalten bei Änderungen den bisherigen Wert.",Location=new Point(24,390),Size=new Size(515,46)});
-        var save=new Button{Text="Prüfen und speichern",Location=new Point(24,445),Size=new Size(240,36)};save.Click+=(s,e)=>{int selectedPort;if(!int.TryParse(fields["port"].Text,out selectedPort)){MessageBox.Show("Gültigen Port eingeben.");return;}var values=new Dictionary<string,object>();foreach(var f in fields)if(f.Value.Text.Trim()!="")values[f.Key]=f.Key=="port"?(object)selectedPort:f.Value.Text.Trim();Send(new{command="configure",config=values});form.Close();};form.Controls.Add(save);
+        var save=new Button{Text="Prüfen und speichern",Location=new Point(24,445),Size=new Size(240,36),BackColor=Color.FromArgb(30,43,62)};save.Click+=(s,e)=>{int selectedPort;if(!int.TryParse(fields["port"].Text,out selectedPort)){MessageBox.Show("Gültigen Port eingeben.");return;}var values=new Dictionary<string,object>();foreach(var f in fields)if(f.Value.Text.Trim()!="")values[f.Key]=f.Key=="port"?(object)selectedPort:f.Value.Text.Trim();values["autostart"]=autostart.Checked;Send(new{command="configure",config=values});form.Close();};form.Controls.Add(save);
         var import=new Button{Text="Bestehende Installation importieren",Location=new Point(280,445),Size=new Size(260,36)};
         import.Click+=(s,e)=>{if(MessageBox.Show("Alle alten Backend-, Bot- und Collector-Prozesse zuerst beenden. Originaldateien bleiben erhalten. Fortfahren?","Import",MessageBoxButtons.YesNo)!=DialogResult.Yes)return;using(var picker=new FolderBrowserDialog{Description="Alten RockLea-Ordner mit .env und data auswählen"})if(picker.ShowDialog(form)==DialogResult.OK){Send(new{command="import",path=picker.SelectedPath});form.Close();}};form.Controls.Add(import);
         var portal=new LinkLabel{Text="Discord Developer Portal öffnen",LinkColor=Color.MediumAquamarine,Location=new Point(24,502),AutoSize=true};portal.LinkClicked+=(s,e)=>OpenPath("https://discord.com/developers/applications");form.Controls.Add(portal);

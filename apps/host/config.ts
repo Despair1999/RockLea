@@ -1,3 +1,4 @@
+import { HostError } from "./errors.js";
 import { z } from "zod";
 import { randomBytes } from "node:crypto";
 import {
@@ -71,12 +72,12 @@ export async function validateDiscord(config: HostConfig) {
     signal: AbortSignal.timeout(15000),
   });
   if (!response.ok)
-    throw new Error(
+    throw new HostError(
       "Discord-Token konnte nicht bestätigt werden. Token und Internetverbindung prüfen.",
     );
   const user = (await response.json()) as { id?: string; bot?: boolean };
   if (!user.bot || user.id !== config.clientId)
-    throw new Error("Client-ID gehört nicht zum angegebenen Bot.");
+    throw new HostError("Client-ID gehört nicht zum angegebenen Bot.");
   const guild = await fetch(
     `https://discord.com/api/v10/guilds/${config.guildId}`,
     {
@@ -85,7 +86,7 @@ export async function validateDiscord(config: HostConfig) {
     },
   );
   if (!guild.ok)
-    throw new Error(
+    throw new HostError(
       "Bot hat keinen Zugriff auf diesen Server. Bot zuerst einladen und Server-ID prüfen.",
     );
 }

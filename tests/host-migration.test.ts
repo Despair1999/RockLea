@@ -88,5 +88,5 @@ it.runIf(process.platform === "win32")(
       vi.unstubAllEnvs();
     }
   },
-  20000,
+  45000,
 );

@@ -34,3 +34,5 @@ function IsUpdateRestart: Boolean;
 begin
   Result := ExpandConstant('{param:ROCKLEARESTART|0}') = '1';
 end;
+[UninstallRun]
+Filename: "{app}\RockLea.exe"; Parameters: "--no-autostart"; Flags: runhidden

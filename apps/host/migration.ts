@@ -1,3 +1,4 @@
+import { HostError } from "./errors.js";
 import {
   cpSync,
   existsSync,
@@ -13,7 +14,9 @@ import { hostConfig, newToken, saveConfig, type Protector } from "./config.js";
 export function copySafe(source: string, destination: string) {
   function inspect(path: string) {
     if (lstatSync(path).isSymbolicLink())
-      throw new Error("Verknüpfungen im Datenordner werden nicht importiert.");
+      throw new HostError(
+        "Verknüpfungen im Datenordner werden nicht importiert.",
+      );
     if (lstatSync(path).isDirectory())
       for (const name of readdirSync(path)) inspect(join(path, name));
   }
@@ -49,7 +52,7 @@ export function importLegacy(source: string, dir: string, crypto?: Protector) {
     existsSync(join(dir, "config.dpapi")) ||
     existsSync(join(dir, "data", "backend"))
   )
-    throw new Error(
+    throw new HostError(
       "Ziel enthält bereits eine Konfiguration oder Datenbank. Import würde vorhandene Daten überschreiben.",
     );
   const env = parseEnv(readFileSync(join(source, ".env"), "utf8"));
@@ -62,7 +65,7 @@ export function importLegacy(source: string, dir: string, crypto?: Protector) {
     port: Number(env.PORT || 3000),
   });
   if (env.DATABASE_URL && !env.DATABASE_URL.startsWith("pglite:"))
-    throw new Error(
+    throw new HostError(
       "Externe PostgreSQL-Datenbank: weiterhin Serverbetrieb verwenden; automatischer Desktop-Import unterstützt lokale PGlite-Daten.",
     );
   const database = resolve(
@@ -70,7 +73,7 @@ export function importLegacy(source: string, dir: string, crypto?: Protector) {
     (env.DATABASE_URL || "pglite:data/backend").slice(7),
   );
   if (!existsSync(database))
-    throw new Error(
+    throw new HostError(
       "Alte Datenbank fehlt. Import abgebrochen, um kein vorhandenes Pairing mit einer leeren Datenbank zu verbinden.",
     );
   backup(dir);

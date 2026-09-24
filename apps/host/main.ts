@@ -1,3 +1,4 @@
+import { HostError, hostErrorMessage } from "./errors.js";
 import { createInterface } from "node:readline";
 import { existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -160,7 +161,9 @@ async function command(input: unknown) {
       existsSync(join(dir, "credentials.dpapi")) &&
       !existsSync(join(dir, "data", "backend"))
     )
-      throw new Error("Import erforderlich");
+      throw new HostError(
+        "Vorhandenes Pairing erkannt: zuerst die alte Datenbank importieren.",
+      );
     config = saveConfig(dir, next);
     try {
       for (const file of findInstallations()) configure(file);
@@ -195,7 +198,10 @@ async function command(input: unknown) {
         ).status === 0,
     });
   if (value.command === "import" && typeof value.path === "string") {
-    if (config) throw new Error("Konfiguration vorhanden");
+    if (config)
+      throw new HostError(
+        "Eine Konfiguration existiert bereits. Import würde vorhandene Daten überschreiben.",
+      );
     await availablePort(3000);
     config = importLegacy(value.path, dir);
     setAutostart(config.autostart);
@@ -251,14 +257,10 @@ lines.on("line", (line) => {
   pending = pending.then(async () => {
     try {
       await command(JSON.parse(line));
-    } catch {
-      log(
-        "HOST",
-        "Aktion fehlgeschlagen; Konfiguration, Port und Verbindungen prüfen.",
-      );
-      message(
-        "Aktion fehlgeschlagen. Discord-Angaben/Internet und freien Port prüfen. Vor dem Import alle alten RockLea-Prozesse beenden. Bei vorhandenem Pairing zuerst alte Datenbank importieren.",
-      );
+    } catch (error) {
+      const detail = hostErrorMessage(error);
+      log("HOST", detail);
+      message(detail);
       state();
     }
   });
@@ -275,10 +277,8 @@ try {
   if (config) {
     try {
       await start();
-    } catch {
-      message(
-        "Start fehlgeschlagen. Port ist möglicherweise belegt oder alte Daten müssen importiert werden. Einstellungen und Logs prüfen.",
-      );
+    } catch (error) {
+      message(hostErrorMessage(error));
     }
   }
   void updates(false).catch(() =>

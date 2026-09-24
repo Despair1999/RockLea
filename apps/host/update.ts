@@ -1,3 +1,4 @@
+import { HostError } from "./errors.js";
 import { createHash } from "node:crypto";
 import {
   createWriteStream,
@@ -63,7 +64,7 @@ export async function checkUpdate(
     signal: AbortSignal.timeout(15000),
   });
   if (!response.ok)
-    throw new Error(
+    throw new HostError(
       "Updateprüfung nicht möglich. Bei privatem Repository einen GitHub-Lesezugang in Einstellungen hinterlegen.",
     );
   const release = releaseSchema.parse(await response.json());
@@ -76,7 +77,7 @@ export function manifestHash(manifest: string, name: string) {
     .map((line) => line.match(/^([a-fA-F0-9]{64})\s+\*?([^/\\]+)$/))
     .filter((m) => m?.[2] === name);
   if (lines.length !== 1)
-    throw new Error("Hashmanifest fehlt oder ist mehrdeutig.");
+    throw new HostError("Hashmanifest fehlt oder ist mehrdeutig.");
   return lines[0]![1].toLowerCase();
 }
 async function downloadAsset(value: z.infer<typeof asset>, token: string) {
@@ -85,12 +86,12 @@ async function downloadAsset(value: z.infer<typeof asset>, token: string) {
     !value.url.startsWith(`${repo}/releases/assets/`) ||
     !/^\d+$/.test(value.url.slice(`${repo}/releases/assets/`.length))
   )
-    throw new Error("Unzulässige Updatequelle.");
+    throw new HostError("Unzulässige Updatequelle.");
   const response = await fetch(value.url, {
     headers: headers(token, true),
     signal: AbortSignal.timeout(300000),
   });
-  if (!response.ok) throw new Error("Update-Download fehlgeschlagen.");
+  if (!response.ok) throw new HostError("Update-Download fehlgeschlagen.");
   return response;
 }
 export async function stageUpdate(
@@ -99,11 +100,11 @@ export async function stageUpdate(
   token: string,
 ) {
   if (!newer(release.tag_name))
-    throw new Error("Kein neueres Release verfügbar.");
+    throw new HostError("Kein neueres Release verfügbar.");
   const installer = release.assets.find((a) => a.name === "RockLea-Setup.exe"),
     manifest = release.assets.find((a) => a.name === "SHA256SUMS.txt");
   if (!installer || !manifest || manifest.size > 65536)
-    throw new Error("Release-Artefakte fehlen.");
+    throw new HostError("Release-Artefakte fehlen.");
   const expected = manifestHash(
     await (await downloadAsset(manifest, token)).text(),
     installer.name,
@@ -112,7 +113,7 @@ export async function stageUpdate(
   mkdirSync(folder, { recursive: true });
   const target = join(folder, "RockLea-Setup.exe");
   const response = await downloadAsset(installer, token);
-  if (!response.body) throw new Error("Leerer Download.");
+  if (!response.body) throw new HostError("Leerer Download.");
   const hash = createHash("sha256");
   let size = 0;
   try {
@@ -132,7 +133,7 @@ export async function stageUpdate(
       createWriteStream(target, { mode: 0o600 }),
     );
     if (size !== installer.size || hash.digest("hex") !== expected)
-      throw new Error("SHA256-Prüfung fehlgeschlagen.");
+      throw new HostError("SHA256-Prüfung fehlgeschlagen.");
     return target;
   } catch (error) {
     rmSync(target, { force: true });

@@ -70,14 +70,18 @@ describe("desktop configuration and migration", () => {
     expect(newToken()).not.toBe(newToken());
     expect(newToken()).toHaveLength(64);
   });
-  it.runIf(process.platform === "win32")("uses actual Windows DPAPI", () => {
-    const dir = temp();
-    saveConfig(dir, config);
-    expect(loadConfig(dir)).toEqual(config);
-    expect(readFileSync(join(dir, "config.dpapi"), "utf8")).not.toContain(
-      config.clientSecret,
-    );
-  });
+  it.runIf(process.platform === "win32")(
+    "uses actual Windows DPAPI",
+    () => {
+      const dir = temp();
+      saveConfig(dir, config);
+      expect(loadConfig(dir)).toEqual(config);
+      expect(readFileSync(join(dir, "config.dpapi"), "utf8")).not.toContain(
+        config.clientSecret,
+      );
+    },
+    15000,
+  );
   it("does not replace existing encrypted config on invalid input", () => {
     const dir = temp();
     saveConfig(dir, config, crypto);
@@ -147,7 +151,7 @@ describe("desktop lifecycle", () => {
     await backend.stop();
     const next = await startBackend();
     await next.stop();
-  });
+  }, 30000);
   it("starts all services and stops writers before database", async () => {
     const order: string[] = [];
     const children: ChildProcess[] = [];

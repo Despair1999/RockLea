@@ -1,3 +1,4 @@
+import { HostError } from "./errors.js";
 import { createServer } from "node:net";
 import { createHash } from "node:crypto";
 export async function availablePort(port: number) {
@@ -5,7 +6,7 @@ export async function availablePort(port: number) {
   await new Promise<void>((resolve, reject) => {
     server.once("error", () =>
       reject(
-        new Error(
+        new HostError(
           `Port ${port} ist belegt. Alte RockLea-Prozesse beenden oder in Einstellungen einen anderen Port wählen.`,
         ),
       ),
@@ -30,7 +31,7 @@ export async function instanceLock(dir: string) {
           host: "127.0.0.1",
         };
   await new Promise<void>((resolve, reject) => {
-    server.once("error", () => reject(new Error("RockLea läuft bereits.")));
+    server.once("error", () => reject(new HostError("RockLea läuft bereits.")));
     server.listen(address, resolve);
   });
   return () => new Promise<void>((resolve) => server.close(() => resolve()));
