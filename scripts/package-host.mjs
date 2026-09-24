@@ -9,14 +9,14 @@ await mkdir(app, { recursive: true });
 await copyFile(process.execPath, join(destination, "runtime/node.exe"));
 for (const file of ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"])
   await copyFile(file, join(app, file));
-// Frozen production install preserves all external ESM/WASM assets and licenses, including PGlite.
+// Hoisted real directories survive relocation without pnpm junctions. Frozen install preserves all external ESM/WASM assets and licenses, including PGlite.
 execFileSync(
   "cmd.exe",
   [
     "/d",
     "/s",
     "/c",
-    "pnpm install --prod --offline --frozen-lockfile --ignore-scripts",
+    "pnpm install --prod --offline --frozen-lockfile --ignore-scripts --config.node-linker=hoisted",
   ],
   { cwd: app, stdio: "inherit", windowsHide: true },
 );
