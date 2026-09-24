@@ -1,6 +1,6 @@
 {
   "name": "rocklea",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -19,7 +19,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "build": "node scripts/build.mjs",
-    "collector:build": "node scripts/package-collector.mjs"
+    "collector:build": "node scripts/package-collector.mjs",
+    "host:build": "pnpm build && node scripts/package-host.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.8",

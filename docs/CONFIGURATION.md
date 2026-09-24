@@ -1,5 +1,13 @@
 # Konfiguration
 
+## Windows-Anwendung
+
+Einstellungen im nativen Assistenten; `%LOCALAPPDATA%\RockLea\config.dpapi` wird per Windows-DPAPI/CurrentUser verschlüsselt. Enthält Discord-Zugang, automatisch erzeugtes internes Token, Port, optionalen GitHub-Lesezugang und Autostartpräferenz. Secrets werden beim erneuten Öffnen nicht an das UI zurückgesendet; leere Felder behalten bestehende Werte. Im Desktop-Betrieb gewinnt diese geprüfte Konfiguration gegenüber geerbten Entwickler-Umgebungswerten. HOST bleibt 127.0.0.1, Datenbank immer im Datenordner. `ROCKLEA_DATA_DIR` ist ein expliziter Test-/Admin-Override; normale Benutzer benötigen ihn nicht.
+
+Bot Token, Client ID und Serverzugriff werden vor dem Speichern geprüft. Redirect URI exakt an den Port anpassen. Den Client Secret bestätigt die OAuth-Anmeldung. Autostartstatus wird aus HKCU gelesen, damit Installer-Optionen korrekt angezeigt werden.
+
+## Entwickler-/Serverbetrieb
+
 Umgebungswerte stehen in `.env.example`. Bot und Backend teilen `INTERNAL_TOKEN`; Collector erhält einen anderen Token je PC. `DISCORD_CLIENT_SECRET` wird ausschließlich für den OAuth-Codeaustausch benötigt. `SESSION_SECRET` und `ENCRYPTION_KEY` sind reserviert und werden in dieser Architektur nicht benötigt: Sitzungen sind zufällige Server-Tokens, Windows-Credentials verwenden DPAPI.
 
 Guild-Einstellungen: `/config get`, `/config set key:<name> value:<JSON>`. Dashboard bietet Formulare für häufige Optionen. Beispiel: `key:sessionTimeout value:60`; `key:channels value:{"matchfeed":"123456789","leaderboard":"123456789"}`. Das Channel-Objekt wird vollständig ersetzt. Eine Channel-ID kann für mehrere Zwecke wiederverwendet werden.

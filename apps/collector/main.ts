@@ -1,8 +1,6 @@
-import WebSocket from "ws";
 import {
   mkdirSync,
   existsSync,
-  readFileSync,
   writeFileSync,
   appendFileSync,
   statSync,
@@ -13,16 +11,8 @@ import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { hostname } from "node:os";
 import { z } from "zod";
-import { Outbox, backoff, flush } from "./outbox.js";
+import { startCollector } from "./service.js";
 import { findInstallations, configure, protect, autostart } from "./windows.js";
-import { receive } from "./receive.js";
-import { Heartbeat } from "./heartbeat.js";
-import {
-  diagnosticLogger,
-  formatIssue,
-} from "../../packages/rocket-league-api/diagnostics.js";
-import { CollectorStream } from "./stream.js";
-import { type Member } from "../../packages/shared/model.js";
 const dir = join(process.env.LOCALAPPDATA ?? process.cwd(), "RockLea");
 mkdirSync(dir, { recursive: true });
 const credentials = join(dir, "credentials.dpapi");
@@ -54,7 +44,7 @@ function backendUrl(raw: string) {
 }
 async function main() {
   if (process.argv.includes("--version")) {
-    console.log("RLStatsCollector 0.1.2");
+    console.log("RLStatsCollector 0.2.0");
     return;
   }
   if (process.argv.includes("--configure")) {
@@ -108,107 +98,9 @@ async function main() {
       rl.close();
     }
   }
-  const config = z
-    .object({
-      backend: z.string(),
-      id: z.string(),
-      token: z.string(),
-      guildId: z.string(),
-    })
-    .parse(JSON.parse(protect(readFileSync(credentials, "utf8"), false)));
-  backendUrl(config.backend);
-  const queue = new Outbox(join(dir, "outbox.sqlite"));
-  let members = queue.get<Member[]>("roster") ?? [];
-  const report = diagnosticLogger(log);
-  const makeStream = () =>
-    new CollectorStream((issue) => report(formatIssue(issue)));
-  let stream = makeStream();
-  let stopping = false,
-    attempt = 0,
-    lastRoster = 0;
-  let socket: WebSocket | undefined;
-  async function request(path: string, body?: unknown) {
-    const response = await fetch(`${config.backend}/api/v1/collector/${path}`, {
-      method: body === undefined ? "GET" : "POST",
-      headers: {
-        authorization: `Bearer ${config.token}`,
-        "content-type": "application/json",
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!response.ok) throw new Error(`Backend HTTP ${response.status}`);
-    return response.json();
-  }
-  const heartbeat = new Heartbeat(
-    () => ({
-      gameConnected: socket?.readyState === WebSocket.OPEN,
-      queueDepth: queue.depth(),
-      version: "0.1.2",
-    }),
-    (status) => request("heartbeat", status),
-    () => report("Heartbeat fehlgeschlagen; neuer Versuch folgt."),
-  );
-  const heartbeatTimer = setInterval(() => void heartbeat.tick(), 5000);
-  void heartbeat.tick();
-  function connect() {
-    if (stopping) return;
-    socket = new WebSocket("ws://127.0.0.1:49124", {
-      maxPayload: 1024 * 1024,
-      handshakeTimeout: 5000,
-    });
-    socket.on("open", () => {
-      stream = makeStream();
-      void heartbeat.tick();
-      log("Rocket League Stats API verbunden.");
-    });
-    socket.on("message", (raw) => {
-      receive(
-        raw.toString(),
-        stream,
-        members,
-        (event) => queue.put(event),
-        report,
-      );
-    });
-    socket.on("error", () => {});
-    socket.on("close", () => {
-      void heartbeat.tick();
-      if (!stopping) setTimeout(connect, 5000);
-    });
-  }
-  connect();
-  const stop = () => {
-    stopping = true;
-    clearInterval(heartbeatTimer);
-    socket?.close();
-  };
-  process.on("SIGINT", stop);
-  process.on("SIGTERM", stop);
-  while (!stopping) {
-    try {
-      if (Date.now() - lastRoster > 60000) {
-        members = (await request("roster")) as Member[];
-        queue.set("roster", members);
-        lastRoster = Date.now();
-      }
-      await flush(queue, async (batch) =>
-        z
-          .object({ accepted: z.array(z.string()) })
-          .parse(await request("events", batch)),
-      );
-      if (attempt) log("Backend wieder verbunden; Puffer wird synchronisiert.");
-      attempt = 0;
-      await new Promise((r) => setTimeout(r, queue.depth() ? 100 : 1000));
-    } catch {
-      if (!attempt)
-        log(
-          "Backend nicht erreichbar. Daten bleiben lokal gepuffert; neuer Verbindungsversuch folgt.",
-        );
-      await new Promise((r) => setTimeout(r, backoff(attempt++)));
-    }
-  }
-  queue.close();
+  const collector = await startCollector(dir, log);
+  for (const signal of ["SIGINT", "SIGTERM"])
+    process.once(signal, () => void collector.stop());
 }
 void main().catch(() => {
   log(

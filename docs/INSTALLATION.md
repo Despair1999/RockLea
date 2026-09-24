@@ -1,38 +1,35 @@
-# Installation
+# Windows-Installation
 
-## Entwicklung
+Normaler Einstieg ist **RockLea-Setup.exe** aus dem neuesten GitHub Release.
+Kein Source-ZIP, Node.js, pnpm, Git oder eigenes Inno Setup nötig. Windows 10/11 x64 mit der Windows-Komponente .NET Framework 4.8 vorausgesetzt.
 
-1. Node >=22.15 installieren, `npm install -g pnpm@11.25.0`.
-2. `pnpm install --frozen-lockfile`.
-3. `pnpm setup:local` erzeugt `.env` mit zufälligem internem Token, ohne bestehende Einstellungen zu überschreiben.
-4. `pnpm db:migrate`, `pnpm build`, `pnpm dev`.
-5. Discord-Zugangsdaten gemäß README eintragen und separat `pnpm bot`.
+## Ersteinrichtung
 
-PGlite-Verzeichnis `data/backend` darf nur von **einem Backend-Prozess** geöffnet werden. Migrationen vor Start oder bei gestopptem Backend ausführen. Für mehrere Prozesse/Instanzen PostgreSQL verwenden. Keine echten Zugangsdaten in Logs oder Screenshots zeigen.
+Im Discord Developer Portal eine Anwendung mit Bot anlegen und in den gewünschten Server einladen. Die Berechtigungen aus der Discord-Bot-Dokumentation dieses Projekts beachten; es werden keine privilegierten Gateway-Intents benötigt. Bot Token, Client ID, Client Secret und Server ID im RockLea-Assistenten speichern. Token/Client-ID-Zuordnung und Zugriff auf den Server werden online geprüft. Der Client Secret wird bei der anschließenden OAuth-Anmeldung tatsächlich verwendet.
 
-## Collector
+Redirect URI exakt wie im Assistenten: `http://localhost:3000/auth/callback`, bei geändertem Port entsprechend anpassen. Das automatisch erzeugte INTERNAL_TOKEN muss nicht kopiert werden.
 
-`pnpm collector:build` erzeugt eine vollständige Windows-EXE inklusive Node-Runtime. `scripts/install-collector.ps1` kopiert sie nach `%LOCALAPPDATA%\Programs\RockLea`. Optional mit Inno Setup 6/7 `ISCC scripts/installer.iss` einen Setup-Assistenten bauen.
+Die Stats-API-INI wird bei Einrichtung soweit auffindbar angepasst und vorher gesichert. Epic-/Steam-Erkennung bleibt enthalten. Bei geänderter INI Rocket League neu starten. Der Status „Verbunden“ zeigt einen offenen lokalen Stats-WebSocket an; Training ohne MatchGuid erzeugt keine Matches.
 
-Einrichtung: `RLStatsCollector.exe --setup`, Backend-HTTPS-URL, `/collector pair`-Code. Lokale Entwicklung erlaubt HTTP ausschließlich für Loopback. Die Zugangsdaten sind an den aktuellen Windows-Nutzer gebunden; sie lassen sich nicht auf einen anderen PC kopieren. Neu pairen, wenn das Windows-Profil wechselt.
+## Migration von 0.1.x
 
-Der Collector entdeckt Epic-Launcher-Manifeste sowie Steam-Registry und `libraryfolders.vdf`. Er liest vorhandene `TAGame\Config\TAStatsAPI.ini`, alternativ `DefaultStatsAPI.ini`, erstellt ein datiertes Backup und ersetzt nur drei Schlüssel im richtigen Abschnitt:
+1. Alte Backend-, Discord-Bot- und Collector-Prozesse vollständig beenden.
+2. Neue App starten, **Bestehende Installation importieren** wählen.
+3. Alten Projektordner mit `.env` und lokaler PGlite-Datenbank auswählen.
+4. Originaldateien bleiben erhalten. Der Import lehnt ein bereits belegtes Ziel ab und sichert vorhandene lokale Daten vorher.
+5. Bestehendes `%LOCALAPPDATA%\RockLea\credentials.dpapi` und `outbox.sqlite` bleiben erhalten. Sie müssen zur importierten Datenbank gehören. Kein Neu-Pairing nötig.
 
-```ini
-[TAGame.MatchStatsExporter_TA]
-PacketSendRate=10
-Port=0
-WebPort=49124
-```
-
-Für einen anderen Sendetakt `RLStatsCollector.exe --configure --packet-rate 20` verwenden (1–120). 10 genügt; der Collector persistiert UpdateState standardmäßig einmal je Sekunde, zusätzlich den letzten gepufferten Stand vor Match-Ende. Ereignisse werden nicht auf diesen Tick-Takt reduziert. Das Spiel muss danach neu gestartet werden. Geschützte Installationsordner können erhöhte Schreibrechte benötigen; das Tool verändert keine Zugriffsrechte.
+Ein belegter alter Standardport verhindert den Import. Bei einer abweichenden alten Portkonfiguration ebenfalls alle alten Prozesse vorher beenden. Datenbankkopien bei laufendem alten Backend sind nicht unterstützt. Bei unterbrochenem Import bleiben Original und Staging-Kopie erhalten; keine Dateien blind löschen oder überschreiben.
 
 ## Betrieb
 
-- SQLite-Puffer: `%LOCALAPPDATA%\RockLea\outbox.sqlite`.
-- Credentials: `credentials.dpapi`, keine Klartext-Token.
-- Rotierende Logs: `collector.log` und `collector.log.1`.
-- Autostart: `--autostart` / `--no-autostart` für die verpackte EXE.
-- Kein Tray-Icon: diese Version verwendet ein Konsolenfenster.
-- Collector vor einem Update beenden. SQLite-Dateien bei laufendem Prozess nicht manuell bearbeiten.
-- Deinstallation entfernt nicht automatisch Offlinedaten. Erst synchronisieren, dann bei Bedarf das lokale RockLea-Datenverzeichnis selbst löschen und Collector im Discord widerrufen.
+Ein sichtbarer Einstieg: RockLea.exe. Tray-Menü für Status, Dashboard, Logs, Neustart, Autostart, Update und Beenden. Das X schließt das Fenster in den Tray. Nur „Beenden“ stoppt alles. Optionaler Benutzer-Autostart in HKCU, ohne Administratorrechte.
+
+Programm: `%LOCALAPPDATA%\Programs\RockLea`. Daten: `%LOCALAPPDATA%\RockLea`.
+Der Installer und seine Deinstallation löschen diesen Datenordner nicht. Die Portable-ZIP enthält EXE und Runtime-Ordner; beide zusammenhalten.
+
+## Updates
+
+Bei neuen Releases „Aktualisieren“ bestätigen. Download aus dem fest konfigurierten GitHub-Repository, genaue SHA256-Prüfung gegen `SHA256SUMS.txt`, dann sauberer Stopp und Installer-Neustart. Für private Releases ist ein Repository-Lese-Token in den Einstellungen erforderlich. Ohne Berechtigung bleibt manueller Download über den angemeldeten Browser möglich.
+
+Installer/EXE sind derzeit unsigned; SHA256 ist eine Integritätsprüfung, keine unabhängige Codesignatur.

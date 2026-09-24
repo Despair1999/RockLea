@@ -1,99 +1,62 @@
-# RockLea
+# RockLea 0.2.0
 
-Privates Rocket-League-Statistiksystem für Discord. Ein Windows-Collector liest die **offizielle lokale Stats API**, filtert auf registrierte Mitglieder und überträgt Beobachtungen an ein PostgreSQL-Backend. Discord-Bot und Admin-Dashboard greifen auf dieselben Daten zu.
+Rocket-League-Statistiken für deinen Discord-Server als Windows-Anwendung.
+Ein Programm startet Backend, Discord-Bot, Collector und Dashboard automatisch.
 
-## Was funktioniert
+## Installation für Windows
 
-- PrimaryId-basierte Mitglieder, mehrere Identitäten, Namenshistorie, automatische eindeutige Erkennung und manuelle Bestätigung.
-- Lokaler WebSocket-Collector, verschlüsselte Windows-Credentials, SQLite-Offlinespeicher, geordnete Wiederholung, widerrufbare Einmal-Pairings.
-- Match-Zustandsmaschine, Multi-Collector-Match-Deduplizierung, spätere Korrektur von Endständen, Wiederherstellung unvollständiger Matches.
-- Score, Tore, Assists, Saves, Shots, Touches, CarTouches, Demos, Overtime und Sieg/Niederlage, soweit tatsächlich geliefert.
-- Whitelist-gefilterte GoalScored-, BallHit- und Statfeed-Ereignisse; Geschwindigkeiten ausschließlich in dokumentierten Roh-Einheiten.
-- Zeit-/Playlistfilter, Duo-/Trio-Auswertungen, Sessions, Leaderboards, automatische persönliche/Server-Rekorde, manuell geprüfte Community-Rekorde und konfigurierbare Achievements.
-- Slash Commands, paginierte Ausgaben, Matchfeed, persistente Wochen-Bestenliste, Rekord-/Achievement-Nachrichten, optionaler Session-Post und Tages-/Wochen-/Monatsrückblick.
-- React-Admin-Dashboard mit Discord OAuth, PostgreSQL-Migrationen, Simulator, Tests, Docker Compose, Windows-EXE-Build und Inno-Setup-Rezept.
+1. [Neueste Version öffnen](https://github.com/Despair1999/RockLea/releases/latest) und **RockLea-Setup.exe** herunterladen.
+2. Setup installieren und **RockLea** starten. Node.js, pnpm und Git werden nicht benötigt.
+3. Einmal Bot Token, Client ID, Client Secret und Server ID im Assistenten eintragen. Der Bot muss zuvor in deinen Server eingeladen sein.
+4. Die angezeigte Redirect-Adresse im Discord Developer Portal erlauben: standardmäßig `http://localhost:3000/auth/callback`.
+5. Dashboard öffnen, mit Discord anmelden und Server/Kanäle sowie Mitglieder einrichten. Alternativ `/setup` im Discord-Server verwenden.
+6. Rocket League starten. Falls die Stats API erstmals eingerichtet wurde, das Spiel einmal neu starten.
 
-**MMR:** Die aktuelle offizielle API dokumentiert keine MMR. Automatische MMR wird als nicht verfügbar angezeigt. Manuelle Messungen sind ausdrücklich `manual`; ein Provider-Interface ermöglicht spätere verifizierte Quellen.
+Windows 10/11 x64 mit .NET Framework 4.8 (Windows-Komponente). Die Node-Laufzeit wird mitgeliefert. Builds sind **nicht codesigniert**. Bei einem privaten Repository ist zum Herunterladen ein berechtigtes GitHub-Konto nötig.
 
-**Prüfstatus:** 76 automatisierte Tests erfolgreich; die 17 Datenbank-/API-Integrationstests zusätzlich gegen einen echten PostgreSQL-17-Server. Backend, Bot, Dashboard und Windows-EXE gebaut. Browser-Workflows und Simulator geprüft. Externe Live-Abnahme und optionale Erweiterungen stehen in [docs/STATUS.md](docs/STATUS.md). Insbesondere haben seltene identische Events keine verlässliche globale Event-ID in der offiziellen Quelle.
+## Bestehende Installation übernehmen
 
-## Lokal starten
+Alle bisherigen Backend-, Bot- und Collector-Prozesse beenden. Im ersten Assistenten **Bestehende Installation importieren** wählen und den alten Projektordner mit `.env` und `data` auswählen. Die lokale PGlite-Datenbank wird kopiert; Originaldateien bleiben erhalten. Vorhandene `credentials.dpapi` und `outbox.sqlite` unter `%LOCALAPPDATA%\RockLea` werden weiterverwendet. Keine erneute Kopplung bei gültigem importiertem Pairing.
 
-Voraussetzungen: Node.js **22.15 oder neuer** (für Deployment Node 24 LTS), pnpm 11.25, Windows für den Collector. PostgreSQL wird produktiv verwendet; lokal funktioniert eingebettetes PostgreSQL/PGlite ohne Docker.
+Nicht erneut eine leere Installation konfigurieren, wenn bereits Collector-Credentials vorhanden sind: zuerst die zugehörige Datenbank importieren. Externe PostgreSQL-Deployments bleiben ein gesonderter Serverbetrieb; der automatische Desktop-Import unterstützt PGlite.
+
+## Täglicher Betrieb und Updates
+
+**RockLea.exe** starten oder „Mit Windows starten“ aktivieren. Das Fenster zeigt Backend, Discord, Collector, Spielverbindung und Offline-Puffer. Schließen minimiert in den Tray; **Beenden** stoppt alle Komponenten. Bei einem zweiten Start wird das vorhandene Fenster aktiviert.
+
+Das Dashboard läuft lokal auf `http://localhost:3000` (Port in Einstellungen änderbar). Ein anderer belegter Port wird gemeldet. Es sind keine Router- oder Firewallfreigaben erforderlich.
+
+Updates werden höchstens einmal pro Tag sowie auf Knopfdruck geprüft. **Aktualisieren** lädt das Release, prüft SHA256, beendet die Komponenten, startet Setup und anschließend RockLea neu. Es wird nichts ohne diesen Klick installiert. Bei privatem GitHub-Repository einen auf dieses Repository begrenzten Lese-Token für Inhalte in den Einstellungen hinterlegen; er wird ebenfalls DPAPI-verschlüsselt.
+
+Alternativ die gesamte **RockLea-Portable.zip** entpacken und die enthaltene RockLea.exe starten. EXE und `runtime` müssen zusammenbleiben. Nutzdaten liegen auch dabei unter `%LOCALAPPDATA%\RockLea`.
+
+## Funktionen
+
+- Match-Ergebnisse, Scoreboard-Werte, Sessions, Bestenlisten, Rekorde und Achievements.
+- Discord-Befehle und Dashboard für Mitglieder, Konfiguration, Datenschutz und Collector-Verwaltung.
+- Nur registrierte Mitglieder; keine dauerhaften fremden Spielerprofile.
+- Verschlüsseltes Pairing und Offline-Outbox; automatische Wiederverbindung.
+- Keine erfundenen MMR-Werte: manuelle Messwerte sind als solche gekennzeichnet.
+- Training ohne MatchGuid wird ignoriert, Wiederholungen werden nicht als neue Live-Matches importiert.
+
+## Entwicklung
+
+Nur für Arbeit am Quellcode: Node 24 und pnpm 11.25 verwenden.
 
 ```powershell
 pnpm install --frozen-lockfile
 pnpm setup:local
 pnpm db:migrate
-pnpm build
 pnpm dev
+# separate Entwicklerterminals:
+pnpm bot
+pnpm collector
 ```
 
-Dashboard: `http://localhost:3000`. Ohne OAuth-Konfiguration erscheint die Anmeldeseite, keine erfundenen Statistiken.
+Prüfungen: `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm test:postgres`.
+Windows-App bauen: `pnpm host:build`; Installer: Inno Setup mit `scripts/host-installer.iss`.
+`pnpm collector:build` erzeugt weiterhin den separaten Collector für Server-Deployments.
 
-## Discord verbinden
+Ein Tag `v0.2.0` startet die CI, baut und prüft Windows-Artefakte und veröffentlicht bei erfolgreichen Linux- und Windows-Jobs das GitHub Release. Versionsnummern vor künftigen Releases gemeinsam aktualisieren.
 
-1. Im [Discord Developer Portal](https://discord.com/developers/applications) eine Anwendung mit Bot anlegen.
-2. `DISCORD_TOKEN`, `DISCORD_CLIENT_ID` und für Dashboard-Login `DISCORD_CLIENT_SECRET` in `.env` setzen. Tokens niemals committen.
-3. OAuth Redirect: `http://localhost:3000/auth/callback` (Produktion: eigene HTTPS-Domain).
-4. Bot mit Scopes `bot` und `applications.commands` auf den Server einladen. Rechte: View Channels, Send Messages, Embed Links, Attach Files, Read Message History. Manage Channels nur zum automatischen Erstellen der Kanäle.
-5. In einem zweiten Terminal `pnpm bot` starten. Optional `DISCORD_GUILD_ID` für sofortige Registrierung im Testserver setzen.
-6. `/setup` öffnet den Assistenten für Owner, Kanäle, Einstellungen und Collector. Optional `create_channels:true` erstellt eigene Kanäle.
-7. `/member add discord:@Niklas name:NiklasRL platform:Epic` und entsprechend Max registrieren.
-8. `/collector pair` erzeugt einen vertraulichen, zehn Minuten gültigen Einmalcode.
-
-Normale Mitglieder können Statistiken lesen. Administration verlangt **Manage Server** oder eine über `/config set` konfigurierte Admin-Rolle. Dashboard-Zugriff verlangt Manage Server/Administrator; Rechte werden beim OAuth-Login geprüft, Sitzungen laufen nach 15 Minuten ab.
-
-## Windows-Collector
-
-```powershell
-pnpm collector:build
-.\release\RLStatsCollector.exe --setup
-```
-
-Alternativ dauerhaft in das Benutzerprofil installieren:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/install-collector.ps1
-```
-
-Backend-URL und Pairing-Code eingeben. Steam-/Epic-Installationen werden gesucht, passende INI-Dateien mit Backup angepasst. Änderungen am Spiel erfordern dessen Neustart. Windows-Autostart wird für die installierte EXE eingerichtet. Die EXE ist **nicht codesigniert**. Der grafische Installer wird in GitHub Actions mit dem vorinstallierten Inno Setup aus `scripts/installer.iss` gebaut. EXE und Setup stehen beim erfolgreichen Windows-Lauf als Artefakt `RLStatsCollector-Windows-x64` unter [Actions](https://github.com/Despair1999/RockLea/actions) zum Download bereit.
-
-Weitere Optionen: `--version`, `--configure --packet-rate 10`, `--autostart`, `--no-autostart`. Die API bleibt lokal auf `ws://127.0.0.1:49124`; niemals diesen Port am Router freigeben.
-
-## Erstes Match und Tests
-
-```powershell
-pnpm test
-pnpm test:postgres
-pnpm simulate:match
-```
-
-Der Simulator verwendet eine isolierte PostgreSQL-Instanz im Speicher und prüft zwei Mitglieder, zwei Collector, Offline-Nachlieferung und ein einziges Match. Er schreibt nicht in deinen Discord-Server.
-
-Für einen expliziten Test des echten Discord-Flows können die dokumentierten Testidentitäten `Epic|niklas-test|0` und `Epic|max-test|0` in einem **Testserver** registriert werden. Dann `COLLECTOR_TOKEN` für einen dort gepairten Testcollector als Umgebungsvariable setzen und `pnpm simulate:match --send` starten. Das erzeugt echte Testserver-Nachrichten. Für echte Spiele keine Testidentitäten verwenden.
-
-Im echten Match: Rocket League nach der INI-Konfiguration neu starten, Collector geöffnet lassen, ein Online-Match spielen. Danach `/match latest`, `/stats member`, `/leaderboard metric:Goals` prüfen. Max benötigt keinen eigenen Collector, solange er im beobachteten Match ist. Spielt er ohne einen anwesenden Collector, kann nichts aufgezeichnet werden.
-
-## Produktion, Backup und Updates
-
-Siehe [Installation](docs/INSTALLATION.md), [Deployment](docs/DEPLOYMENT.md) und [Troubleshooting](docs/TROUBLESHOOTING.md).
-
-```sh
-docker compose up -d --build
-```
-
-Erfordert eine ausgefüllte `.env`, `DB_PASSWORD`, `PUBLIC_HOST`, gültige Discord-Konfiguration und DNS/Ports 80/443. Compose startet PostgreSQL, einen versionierten Migrationsjob, Backend samt statischem Dashboard, Bot und Caddy für HTTPS. Das Dashboard teilt bewusst den Backend-Origin, damit kein unnötiges CORS-/Cookie-Setup entsteht.
-
-```powershell
-powershell -File scripts/backup.ps1 -RetentionDays 30
-```
-
-Vor Updates Backup prüfen, dann Code aktualisieren und Compose neu bauen. Migrationsdateien sind additiv versioniert; kein `schema push`, kein automatisches Löschen von Daten beim Start.
-
-## Dokumentation
-
-- [Architektur](docs/ARCHITECTURE.md) · [Konfiguration](docs/CONFIGURATION.md)
-- [Offizielle API und Grenzen](docs/ROCKET_LEAGUE_API.md) · [MMR](docs/MMR_PROVIDERS.md)
-- [Discord-Befehle](docs/DISCORD_COMMANDS.md) · [Datenschutz](docs/PRIVACY.md)
-- [Abnahmestatus und verbleibende Grenzen](docs/STATUS.md)
+[Installation](docs/INSTALLATION.md) · [Konfiguration](docs/CONFIGURATION.md) · [Fehlerhilfe](docs/TROUBLESHOOTING.md) · [Deployment und Backup](docs/DEPLOYMENT.md) · [Status und Grenzen](docs/STATUS.md) · [API](docs/ROCKET_LEAGUE_API.md)

@@ -1,3 +1,20 @@
+# Windows-App: schnelle Fehlerhilfe
+
+- **Port belegt:** alte RockLea-Prozesse beenden oder Einstellungen → Port ändern. Redirect URI in Discord ebenfalls ändern.
+- **Bestehendes Pairing, keine Datenbank:** den alten Projektordner importieren. Die App ersetzt vorhandene Credentials nicht durch ein neues leeres Pairing.
+- **Import abgebrochen:** Originale bleiben unberührt. Ziel nicht überschreiben; Staging/Backups im Datenordner prüfen, bevor erneut importiert wird.
+- **Discord offline:** Bot Token, Client ID, Server-ID, Einladung und Internet prüfen. Nach fünf fehlgeschlagenen Neustarts im Fenster „Neu starten“ wählen.
+- **Rocket League wartet:** Spiel starten, „Stats API einrichten“ wählen, danach Spiel neu starten. Port 49124 bleibt ausschließlich lokal.
+- **Training:** Spielverbindung kann grün sein, ohne Matches zu erzeugen. Ohne MatchGuid wird still ignoriert.
+- **Sitzung abgelaufen:** Dashboard zeigt wieder die Discord-Anmeldung mit einer verständlichen Meldung.
+- **Updates nicht erreichbar:** das Repository kann privat sein. GitHub-Lese-Token mit Zugriff auf die Repository-Inhalte in Einstellungen hinterlegen oder Setup über den angemeldeten Browser laden.
+- **Hashprüfung fehlgeschlagen:** Installation wird abgebrochen; Nutzdaten bleiben erhalten. Erneut Updates prüfen, kein ungeprüftes EXE-Ersetzen.
+- **Fenster geschlossen:** RockLea läuft im Tray weiter. Über „RockLea beenden“ stoppen.
+
+Logs: `%LOCALAPPDATA%\RockLea\logs\rocklea.log`, Rotation bei 2 MB, bis zu drei Vorgänger. Keine Tokens oder Raw-Spielpayloads weitergeben.
+
+## Weitere Entwicklerdiagnose
+
 # Fehlerbehebung
 
 ## Rocket League nicht verbunden

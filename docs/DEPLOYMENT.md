@@ -1,5 +1,13 @@
 # Deployment und Backup
 
+## Windows-App
+
+RockLea-Setup.exe installiert das Programm getrennt von Benutzerdaten. Der Host startet drei unsichtbare Node-Hilfsprozesse, überwacht Zustände und versucht höchstens fünf Neustarts pro Komponente mit exponentiellen Abständen. Manuelles Neustarten setzt dieses Budget zurück. Ein nativer WinForms-Host bietet Tray und Status ohne Browser-Engine/Electron. Die mitgelieferte Node-Laufzeit und Produktion-Abhängigkeiten machen zusätzliche Entwicklertools überflüssig. .NET Framework 4.8 stammt aus Windows.
+
+„Backup erstellen“ stoppt die Komponenten, kopiert lokale Daten nach `%LOCALAPPDATA%\RockLea\backups` und startet neu. Vor der ersten Datenbankmigration einer neuen Programmversion wird ebenfalls eine Kopie erstellt. Backups enthalten persönliche Daten und verschlüsselte Credentials; DPAPI ist an dasselbe Windows-Benutzerkonto gebunden. Wiederherstellen nur bei vollständig gestoppter App und nach Sicherung des aktuellen Standes.
+
+## Separater Docker-Server (optional, für Administratoren)
+
 Benötigt Docker Engine/Compose auf einem dauerhaft laufenden Host, PostgreSQL-Volume, DNS-Domain und ausgehende Discord-Verbindung. Ports 80 und 443 zeigen auf Caddy. Datenbank und interne Bot-Routen sind nicht öffentlich. Der Collector bleibt auf dem Gaming-PC.
 
 1. Repository laden, `.env.example` nach `.env` kopieren.

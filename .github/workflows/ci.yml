@@ -46,20 +46,56 @@ jobs:
       - run: pnpm test
       - run: pnpm collector:build
       - run: ./release/RLStatsCollector.exe --version
+      - run: pnpm host:build
+      - name: Portable application startup
+        shell: pwsh
+        run: |
+          $app = Start-Process -FilePath './release/host/RockLea.exe' -ArgumentList '--smoke' -WindowStyle Hidden -Wait -PassThru
+          if ($app.ExitCode -ne 0) { throw 'Portable smoke failed.' }
+          & ./release/host/RockLea.exe --version
       - name: Build installer with preinstalled Inno Setup
         shell: pwsh
         run: |
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" scripts/installer.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Legacy layout installer compilation failed.' }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" scripts/host-installer.iss
           if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
-      - name: Verify installer in disposable runner
+      - name: Install, upgrade and uninstall preserve data
+        shell: pwsh
+        run: ./scripts/test-installer.ps1
+      - name: Package portable application and checksums
         shell: pwsh
         run: |
-          $testInstallPath = Join-Path $env:RUNNER_TEMP 'RockLeaInstallTest'
-          $installer = Start-Process -FilePath './release/RLStatsCollector-Setup.exe' -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $testInstallPath + '"')) -WindowStyle Hidden -Wait -PassThru
-          if ($installer.ExitCode -ne 0) { throw 'Installer failed.' }
-          & (Join-Path $testInstallPath 'RLStatsCollector.exe') --version
-          if ($LASTEXITCODE -ne 0) { throw 'Installed collector failed.' }
+          Compress-Archive -Path './release/host/*' -DestinationPath './release/RockLea-Portable.zip'
+          Expand-Archive -Path './release/RockLea-Portable.zip' -DestinationPath (Join-Path $env:RUNNER_TEMP 'RockLeaPortableExtract')
+          $portable = Start-Process -FilePath (Join-Path $env:RUNNER_TEMP 'RockLeaPortableExtract/RockLea.exe') -ArgumentList '--smoke' -WindowStyle Hidden -Wait -PassThru
+          if ($portable.ExitCode -ne 0) { throw 'Extracted portable package failed.' }
+          $manifest = @('RockLea-Setup.exe','RockLea-Portable.zip') | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path './release' $_)).Hash.ToLower()
+            $hash + '  ' + $_
+          }
+          $manifest | Set-Content -Encoding ascii './release/SHA256SUMS.txt'
       - uses: actions/upload-artifact@v4
         with:
-          name: RLStatsCollector-Windows-x64
-          path: release/*.exe
+          name: RockLea-Windows-x64
+          path: |
+            release/RockLea-Setup.exe
+            release/RockLea-Portable.zip
+            release/SHA256SUMS.txt
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [quality, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: RockLea-Windows-x64
+          path: release
+      - name: Publish verified Windows release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" release/RockLea-Setup.exe release/RockLea-Portable.zip release/SHA256SUMS.txt --verify-tag --title "RockLea $RELEASE_TAG" --notes-file docs/RELEASE_0.2.0.md

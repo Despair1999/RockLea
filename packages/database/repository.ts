@@ -221,7 +221,7 @@ export class Repository {
   }
   collectors(guild: string) {
     return this.db.query(
-      "SELECT id,name,owner_member_id,revoked,last_seen_at,status FROM collectors WHERE guild_id=$1 ORDER BY name",
+      "SELECT c.id,c.name,c.owner_member_id,m.display_name AS owner_name,c.revoked,c.last_seen_at,c.status FROM collectors c LEFT JOIN members m ON m.id=c.owner_member_id WHERE c.guild_id=$1 ORDER BY c.name",
       [guild],
     );
   }

@@ -7,6 +7,8 @@ import {
   defaults,
 } from "../../packages/shared/model.js";
 import "./style.css";
+import { dashboardResponse } from "./session.js";
+import { CollectorList } from "./collectors.js";
 import { labels } from "../../packages/shared/labels.js";
 type Match = { id: string; guid: string; state: MatchState };
 type Summary = {
@@ -72,9 +74,15 @@ function App() {
       headers: { "content-type": "application/json", "x-rocklea-request": "1" },
       body: JSON.stringify({ action, args }),
     });
-    const result = await r.json();
-    if (!r.ok) throw new Error(result.error ?? "Anfrage fehlgeschlagen.");
-    return result;
+    return dashboardResponse<T>(r, () => {
+      setMe(null);
+      setGuild("");
+      setSummary(null);
+      setMatches([]);
+      setMembers([]);
+      setData(null);
+      setNotice("");
+    });
   }
   async function refresh() {
     if (!guild) return;
@@ -322,10 +330,7 @@ function App() {
         </section>
         {error && (
           <div className="alert" role="alert">
-            {error}{" "}
-            <button onClick={() => void mutate("setup", {})}>
-              Server einrichten
-            </button>
+            {error}
           </div>
         )}
         {notice && (
@@ -675,19 +680,7 @@ function App() {
             >
               Pairing-Code erstellen
             </button>
-            {form(
-              "collector.revoke",
-              [{ name: "id", label: "Collector-ID", required: true }],
-              "Zugang widerrufen",
-            )}
-            {form(
-              "collector.rename",
-              [
-                { name: "id", label: "Collector-ID", required: true },
-                { name: "name", label: "Neuer Name", required: true },
-              ],
-              "Umbenennen",
-            )}
+            <CollectorList data={data} busy={busy} mutate={mutate} />
           </section>
         )}
         {tab === "Rekorde" && (

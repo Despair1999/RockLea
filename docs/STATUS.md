@@ -1,3 +1,17 @@
+# Status 0.2.0
+
+Windows-Host mit nativer WinForms-Oberfläche/Tray, verschlüsseltem Setup, integriertem Backend/Bot/Collector, Autostart, Single Instance, begrenztem Supervisor, lokalen Backups und Release-Updater implementiert. Installer und Portable-Paket enthalten die Node-Laufzeit. Dashboard-401-UX und Collector-Verwaltung korrigiert.
+
+Vor Änderungen: Desktop-Ordner RockLea-main-Folder/RockLea-main enthält exakt den gepushten d997af2-Code, keine zusätzlichen Quelldateien. Kein Sicherungs-Commit erforderlich. .env, data, dist, node_modules und release bewusst ausgeschlossen. Fremde Dateien im ursprünglichen Workspace bleiben unangetastet.
+
+Phase A: Commit ae40894. Tatsächlich beobachtet: Data ist ein String, dessen einmaliges JSON.parse ein Objekt ergibt. Nach Reparatur 120 reale Training-Events, 0 Parserfehler, 0 Match-/Outbox-Projektionen. 114 Tests und 17 PostgreSQL-Tests bestanden.
+
+Phase B: zusätzliche Tests für Host, Config/DPAPI, echten Datenbankimport, Outbox-/Pairing-Erhalt, Collector-/Backend-Lifecycle, Port-/Instanzsperre, Supervisor, Dashboard und Update-Integrität. Die GitHub-CI prüft Linux/PostgreSQL/Docker sowie Windows-Build, portable Startprüfung, Installer und Upgrade/Deinstallation. Ein echtes Online-Match und Discord-Post sind weiterhin separat live abzunehmen.
+
+Grenzen: Installer ist unsigned. Portable bedeutet ein Ordner mit EXE und Runtime, keine einzelne selbstentpackende Datei. Windows-Komponente .NET Framework 4.8 erforderlich. Private Release-Downloads benötigen einen GitHub-Lesezugang. Automatischer Altimport nur für lokale PGlite-Datenbanken und gestoppte Altprozesse; externe PostgreSQL-Installationen bleiben Server-Deployments. Keine automatische Migration zwischen Windows-Konten wegen DPAPI. Keine erfundenen MMR-Werte.
+
+## Historie vor 0.2.0
+
 # Abnahmestatus
 
 ## Implementiert und lokal geprüft
@@ -21,7 +35,7 @@
 
 ## Bewusste Grenzen und optionale Erweiterungen
 
-- Collector mit Konsole, Autostart, DPAPI und Logs; kein optionales Tray-UI.
+- Historisch bis 0.1.x: separater Konsolen-Collector. Ab 0.2.0 übernimmt die Windows-App den normalen Betrieb.
 - Kein automatischer MMR-/Rank-Provider ohne dokumentierte, zulässige Quelle. Manuelle Messungen sind klar gekennzeichnet; kein aus Siegen geschätztes MMR.
 - Kein Community-Elo, Live-Demo-Feed, Saison-Abschluss-Recap oder dynamischer Presence-Text. Tages-/Wochen-/Monatsrückblicke und Live-Tormeldungen sind vorhanden.
 - Deutsch ist die vollständige Bedienoberfläche; en-US-Vertrag ist vorbereitet, aber kein vollständig englisches UI.
