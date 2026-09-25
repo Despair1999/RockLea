@@ -47,6 +47,7 @@ jobs:
       - run: pnpm collector:build
       - run: ./release/RLStatsCollector.exe --version
       - run: pnpm host:build
+      - run: pnpm exec tsx scripts/verify-icon.ts release/host/RockLea.exe
       - name: Portable application startup
         shell: pwsh
         run: |
@@ -60,9 +61,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Legacy layout installer compilation failed.' }
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" scripts/host-installer.iss
           if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
+          pnpm exec tsx scripts/verify-icon.ts release/RockLea-Setup.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Installer icon verification failed.' }
       - name: Install, upgrade and uninstall preserve data
         shell: pwsh
-        run: ./scripts/test-installer.ps1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download v0.2.0 --pattern RockLea-Setup.exe --dir (Join-Path $env:RUNNER_TEMP 'RockLeaPrevious')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not obtain previous verified release.' }
+          ./scripts/test-installer.ps1 -PreviousInstaller (Join-Path $env:RUNNER_TEMP 'RockLeaPrevious/RockLea-Setup.exe')
       - name: Package portable application and checksums
         shell: pwsh
         run: |
@@ -98,4 +106,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" release/RockLea-Setup.exe release/RockLea-Portable.zip release/SHA256SUMS.txt --verify-tag --title "RockLea $RELEASE_TAG" --notes-file docs/RELEASE_0.2.0.md
+        run: gh release create "$RELEASE_TAG" release/RockLea-Setup.exe release/RockLea-Portable.zip release/SHA256SUMS.txt --verify-tag --title "RockLea $RELEASE_TAG" --notes-file docs/RELEASE_0.3.0.md

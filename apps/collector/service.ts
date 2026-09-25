@@ -76,7 +76,7 @@ export async function startCollector(
       const current = {
         gameConnected: socket?.readyState === WebSocket.OPEN,
         queueDepth: queue.depth(),
-        version: "0.2.0",
+        version: "0.3.0",
       };
       status(current);
       return current;

@@ -44,7 +44,7 @@ function backendUrl(raw: string) {
 }
 async function main() {
   if (process.argv.includes("--version")) {
-    console.log("RLStatsCollector 0.2.0");
+    console.log("RLStatsCollector 0.3.0");
     return;
   }
   if (process.argv.includes("--configure")) {

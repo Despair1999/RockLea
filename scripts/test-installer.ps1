@@ -1,4 +1,4 @@
-param([string]$Installer = './release/RockLea-Setup.exe')
+param([string]$Installer = './release/RockLea-Setup.exe', [string]$PreviousInstaller = '')
 $ErrorActionPreference = 'Stop'
 $testInstallPath = Join-Path $env:RUNNER_TEMP 'RockLeaInstallTest'
 $testDataPath = Join-Path $env:RUNNER_TEMP 'RockLeaUpgradeData'
@@ -8,9 +8,20 @@ $sentinel = Join-Path $testDataPath 'upgrade-sentinel.txt'
 Set-Content -LiteralPath $sentinel -Value 'Preserve user data across upgrades'
 $legacy = Start-Process -FilePath './release/RLStatsCollector-Setup.exe' -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TASKS=autostart',('/DIR="' + $testInstallPath + '"')) -WindowStyle Hidden -Wait -PassThru
 if ($legacy.ExitCode -ne 0) { throw 'Legacy layout installation failed.' }
+if ($PreviousInstaller) {
+  $previous = Start-Process -FilePath $PreviousInstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="' + $testInstallPath + '"')) -WindowStyle Hidden -Wait -PassThru
+  if ($previous.ExitCode -ne 0) { throw '0.2.0 installer failed.' }
+  if ((Get-Item (Join-Path $testInstallPath 'RockLea.exe')).VersionInfo.FileVersion -ne '0.2.0.0') { throw 'Previous application must be 0.2.0.' }
+  pnpm exec tsx scripts/upgrade-probe.ts seed (Join-Path $testInstallPath 'runtime/app') $testDataPath
+  if ($LASTEXITCODE -ne 0) { throw 'Old schema seed failed.' }
+}
 for ($pass = 0; $pass -lt 2; $pass++) {
   $setupProcess = Start-Process -FilePath $Installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TASKS=autostart',('/DIR="' + $testInstallPath + '"')) -WindowStyle Hidden -Wait -PassThru
   if ($setupProcess.ExitCode -ne 0) { throw 'Installer or upgrade failed.' }
+  if ($PreviousInstaller) {
+    pnpm exec tsx scripts/upgrade-probe.ts verify (Join-Path $testInstallPath 'runtime/app') $testDataPath
+    if ($LASTEXITCODE -ne 0) { throw '0.2.0 data upgrade failed.' }
+  }
   $smoke = Start-Process -FilePath (Join-Path $testInstallPath 'RockLea.exe') -ArgumentList '--smoke' -WindowStyle Hidden -Wait -PassThru
   if ($smoke.ExitCode -ne 0) {
     Push-Location (Join-Path $testInstallPath 'runtime/app')

@@ -37,6 +37,7 @@ execFileSync(
     "/target:winexe",
     "/platform:x64",
     "/optimize+",
+    `/win32icon:${resolve("assets/RockLea.ico")}`,
     `/out:${join(destination, "RockLea.exe")}`,
     "/reference:System.Windows.Forms.dll",
     "/reference:System.Drawing.dll",
@@ -47,7 +48,7 @@ execFileSync(
 );
 await writeFile(
   join(destination, "PORTABLE.txt"),
-  "RockLea 0.2.0\r\nKeep this entire folder together. Start RockLea.exe. User data stays in %LOCALAPPDATA%\\RockLea.\r\nWindows 10/11 x64, .NET Framework 4.8 (Windows component). Node runtime included. Unsigned build.\r\n",
+  "RockLea 0.3.0\r\nKeep this entire folder together. Start RockLea.exe. User data stays in %LOCALAPPDATA%\\RockLea.\r\nWindows 10/11 x64, .NET Framework 4.8 (Windows component). Node runtime included. Unsigned build.\r\n",
 );
 const license = await fetch(
   `https://raw.githubusercontent.com/nodejs/node/${process.version}/LICENSE`,

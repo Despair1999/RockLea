@@ -1,7 +1,8 @@
 [Setup]
 AppId=RockLea Collector
 AppName=RockLea
-AppVersion=0.2.0
+SetupIconFile=..\assets\RockLea.ico
+AppVersion=0.3.0
 AppPublisher=RockLea
 ArchitecturesAllowed=x64compatible
 DefaultDirName={localappdata}\Programs\RockLea

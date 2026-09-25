@@ -1,4 +1,12 @@
-# Status 0.2.0
+# Status 0.3.0
+
+Moderne Discord-Ansichten, finales Scoreboard beider Teams, permanente Rekordtafel mit echten Rekorddaten, zentral belegte Playlist-Metadaten und abgeleiteter Wichscounter implementiert. Original-Logo als mehrstufiges Windows-Icon eingebunden. Details in `RELEASE_0.3.0.md`, `PLAYLISTS.md` und `PRIVACY.md`; reproduzierbare visuelle Fixtures in `examples/discord-preview.html`.
+
+Ausgangsstand dieser Erweiterung: sauberer, bereits gepushter Main-Commit `bdcae6ed9549eb3e43f17a97597488a87e5f25e5` (Kurzform `bdcae6e`). Keine zusätzlichen lokalen Benutzeränderungen im verwendeten Git-Worktree; deshalb kein künstlicher Sicherungs-Commit. Lokale Daten, Secrets, Abhängigkeiten und Build-Ausgaben werden weiterhin nicht versioniert.
+
+199 Tests lokal erfolgreich (vorher 138), dazu 19 echte PostgreSQL-Tests (vorher 17). Typecheck/Lint/Build sowie gepackter Windows-Start und eingebettete Icon-Payloads geprüft. Die CI prüft zusätzlich Linux/Docker, Installer, extrahierte Portable-ZIP und Upgrade vom veröffentlichten 0.2.0-Installer mit alten Datenbankmigrationen, DPAPI-Konfiguration, Pairing und Offline-Outbox. Die Desktop-/320px-Mobilansichten wurden mit synthetischen Fixtures visuell geprüft, nicht als echter Discord-Client-Livetest. Ein reales Online-Match einschließlich Discord-Post und die sichtbare Windows-Tray-/Taskleistenanzeige bleiben auf dem Ziel-PC zu prüfen.
+
+## Historie 0.2.0
 
 Windows-Host mit nativer WinForms-Oberfläche/Tray, verschlüsseltem Setup, integriertem Backend/Bot/Collector, Autostart, Single Instance, begrenztem Supervisor, lokalen Backups und Release-Updater implementiert. Installer und Portable-Paket enthalten die Node-Laufzeit. Dashboard-401-UX und Collector-Verwaltung korrigiert.
 

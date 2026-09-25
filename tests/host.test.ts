@@ -211,7 +211,7 @@ describe("desktop lifecycle", () => {
 });
 describe("updates and collector view", () => {
   it.each([
-    ["0.2.1", true],
+    ["0.3.1", true],
     ["v0.10.0", true],
     ["0.2.0", false],
     ["0.1.99", false],
@@ -250,7 +250,7 @@ describe("updates and collector view", () => {
       stageUpdate(
         temp(),
         {
-          tag_name: "v0.2.1",
+          tag_name: "v0.3.1",
           draft: false,
           prerelease: false,
           assets: [
@@ -277,7 +277,7 @@ describe("updates and collector view", () => {
       stageUpdate(
         dir,
         {
-          tag_name: "v0.2.1",
+          tag_name: "v0.3.1",
           draft: false,
           prerelease: false,
           assets: [
