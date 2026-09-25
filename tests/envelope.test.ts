@@ -7,7 +7,7 @@ import {
 import { CollectorStream } from "../apps/collector/stream.js";
 import { receive } from "../apps/collector/receive.js";
 import { fixture, niklas } from "./fixtures.js";
-import { type Member } from "../packages/shared/model.js";
+import { type Member, type Envelope } from "../packages/shared/model.js";
 const member: Member = {
   id: "m",
   discord_id: "1",
@@ -65,8 +65,8 @@ describe("wire envelopes", () => {
   it("produces the same private final match stream with string-encoded ticks and references", () => {
     const objectStream = new CollectorStream(),
       stringStream = new CollectorStream();
-    const objectEvents: unknown[] = [],
-      stringEvents: unknown[] = [];
+    const objectEvents: Envelope[] = [],
+      stringEvents: Envelope[] = [];
     fixture().forEach((e, i) => {
       objectEvents.push(
         ...objectStream.accept(JSON.stringify(e), [member], 1000 + i * 100),
@@ -81,9 +81,19 @@ describe("wire envelopes", () => {
     });
     expect(stringEvents).toEqual(objectEvents);
     expect(stringEvents.length).toBeGreaterThan(0);
-    expect(JSON.stringify(stringEvents)).not.toMatch(
-      /RandomPlayer|opponent-secret/,
-    );
+    expect(JSON.stringify(stringEvents)).not.toContain("opponent-secret");
+    // 0.3: final match-post names are explicitly allowed; every other field remains private.
+    expect(
+      JSON.stringify(
+        stringEvents.map((e) => ({
+          ...e,
+          Data: { ...e.Data, FinalScoreboard: undefined },
+        })),
+      ),
+    ).not.toContain("RandomPlayer");
+    expect(
+      stringEvents.find((e) => e.Event === "MatchEnded")?.Data.FinalScoreboard,
+    ).toHaveLength(4);
   });
   it("diagnoses only structural information, including unknown events", () => {
     const raw = JSON.stringify({

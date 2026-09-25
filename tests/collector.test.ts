@@ -15,7 +15,7 @@ const member: Member = {
   pending_platform: null,
   identities: [niklas],
 };
-it("flushes the throttled final snapshot before match end without opponent data", () => {
+it("flushes the final member snapshot and allows opponent names only in the final scoreboard", () => {
   const stream = new CollectorStream();
   const states = fixture().filter((e) => e.Event === "UpdateState");
   expect(stream.accept(JSON.stringify(states[0]), [member], 1000)).toHaveLength(
@@ -34,7 +34,11 @@ it("flushes the throttled final snapshot before match end without opponent data"
   );
   expect(result.map((e) => e.Event)).toEqual(["UpdateState", "MatchEnded"]);
   expect((result[0].Data.Players as Player[])[0].Goals).toBe(3);
-  expect(JSON.stringify(result)).not.toMatch(/RandomPlayer|opponent-secret/);
+  expect(JSON.stringify(result[0])).not.toMatch(/RandomPlayer|opponent-secret/);
+  expect(JSON.stringify(result)).not.toContain("opponent-secret");
+  expect(JSON.stringify(result[1].Data.FinalScoreboard)).toContain(
+    "RandomPlayer1",
+  );
 });
 it("discards replay events until a new live match begins", () => {
   const stream = new CollectorStream();

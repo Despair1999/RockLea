@@ -18,7 +18,13 @@ import {
 } from "discord.js";
 import { commandDefinitions } from "./commands.js";
 import { setupButtons, setupInteraction } from "./setup.js";
-import { matchEmbed, resultEmbeds } from "../../packages/discord-ui/embeds.js";
+import {
+  matchEmbed,
+  resultEmbeds,
+  actionEmbeds,
+  recordEmbeds,
+} from "../../packages/discord-ui/embeds.js";
+import { persistentMessage } from "../../packages/discord-ui/persistent-message.js";
 import { adminActions } from "../../packages/shared/actions.js";
 import {
   type GuildConfig,
@@ -343,7 +349,13 @@ export async function startDiscordBot(
         );
         return;
       }
-      let embeds = resultEmbeds(`Rocket League · ${i.commandName}`, value);
+      let embeds = actionEmbeds(
+        name,
+        value,
+        name === "leaderboard"
+          ? `🏅 ${String(args.metric ?? "Goals")} · ${String(args.period ?? "all")}`
+          : undefined,
+      );
       if (name.startsWith("match.")) {
         const cfg = await api<GuildConfig>("action", {
           guild: i.guildId,
@@ -388,30 +400,25 @@ export async function startDiscordBot(
     embeds: EmbedBuilder[],
     existing: { message_id: string } | null,
   ) {
-    if (existing) {
-      try {
-        await channel.messages.edit(existing.message_id, {
+    await persistentMessage(
+      async () => existing?.message_id ?? null,
+      async (id) =>
+        channel.messages.edit(id, {
           embeds,
           allowedMentions: { parse: [] },
-        });
-        return;
-      } catch (error) {
-        if (!(
-          error &&
-          typeof error === "object" &&
-          "code" in error &&
-          error.code === 10008
-        ))
-          throw error;
-      }
-    }
-    const sent = await channel.send({
-      embeds,
-      nonce: createHash("sha256").update(key).digest("hex").slice(0, 24),
-      enforceNonce: true,
-      allowedMentions: { parse: [] },
-    });
-    await api("message", { guild, key, channel: channel.id, message: sent.id });
+        }),
+      async () =>
+        (
+          await channel.send({
+            embeds,
+            nonce: createHash("sha256").update(key).digest("hex").slice(0, 24),
+            enforceNonce: true,
+            allowedMentions: { parse: [] },
+          })
+        ).id,
+      async (message) =>
+        api("message", { guild, key, channel: channel.id, message }),
+    );
   }
   let boardBusy = false;
   async function refreshBoards() {
@@ -426,7 +433,7 @@ export async function startDiscordBot(
             actor,
             action: "config.get",
           });
-          for (const kind of ["leaderboard", "stats"] as const) {
+          for (const kind of ["leaderboard", "stats", "records"] as const) {
             const channelId = cfg.channels[kind];
             if (!channelId) continue;
             const channel = await client.channels.fetch(channelId);
@@ -434,12 +441,17 @@ export async function startDiscordBot(
             const key =
               kind === "leaderboard"
                 ? "leaderboard:Goals:week"
-                : "stats:server:week";
+                : kind === "records"
+                  ? "records:overview"
+                  : "stats:server:week";
             const values = await api("action", {
               guild: guild.id,
               actor,
-              action: kind === "leaderboard" ? "leaderboard" : "stats.server",
-              args: { metric: "Goals", period: "week" },
+              action: kind === "stats" ? "stats.server" : kind,
+              args: {
+                metric: "Goals",
+                period: kind === "records" ? "all" : "week",
+              },
             });
             const old = await api<{ message_id: string } | null>("message", {
               guild: guild.id,
@@ -450,11 +462,14 @@ export async function startDiscordBot(
               channel,
               guild.id,
               key,
-              resultEmbeds(
+              actionEmbeds(
+                kind === "stats" ? "stats.server" : kind,
+                values,
                 kind === "leaderboard"
                   ? "Tore · Diese Woche"
-                  : "Serverstatistik · Diese Woche",
-                values,
+                  : kind === "records"
+                    ? "🏆 Serverrekorde · Allzeit"
+                    : "Serverstatistik · Diese Woche",
               ).slice(0, 1),
               old,
             );
@@ -501,7 +516,11 @@ export async function startDiscordBot(
           key,
           channel: channel.id,
         });
-        const embed = matchEmbed(job.match.state, job.config);
+        const embed = matchEmbed(
+          job.match.state,
+          job.config,
+          (job.payload as { scoreboard?: unknown }).scoreboard,
+        );
         await persistMessage(channel, job.guild_id, key, [embed], existing);
       }
       if (job.kind !== "match") {
@@ -525,9 +544,10 @@ export async function startDiscordBot(
             session: "Session beendet",
             recap: "Zeitraum-Rückblick",
           };
-          const embeds = resultEmbeds(
-            titles[job.kind] ?? "Rocket League",
-            job.payload,
+          const embeds = (
+            job.kind === "record"
+              ? recordEmbeds(job.payload, titles.record)
+              : resultEmbeds(titles[job.kind] ?? "Rocket League", job.payload)
           ).slice(0, 1);
           const old = await api<{ message_id: string } | null>("message", {
             guild: job.guild_id,

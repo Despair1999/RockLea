@@ -43,7 +43,7 @@ export async function reconcile(db: Database) {
         [guild.id],
       );
       const events = await q.query<EventRow>(
-        "SELECT e.match_id,e.type,e.data FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
+        "SELECT e.match_id,e.type,e.data,e.occurred_at FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
         [guild.id],
       );
       const newRecords: (AutomaticRecord & { previous: number | null })[] = [];
@@ -56,8 +56,16 @@ export async function reconcile(db: Database) {
         )[0];
         if (!old || Number(old.value) < r.value) {
           await q.query(
-            "INSERT INTO automatic_records(guild_id,metric,member_id,match_id,value,unit) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(guild_id,metric) DO UPDATE SET member_id=excluded.member_id,match_id=excluded.match_id,value=excluded.value,unit=excluded.unit,updated_at=now()",
-            [guild.id, r.metric, r.memberId, r.matchId, r.value, r.unit],
+            "INSERT INTO automatic_records(guild_id,metric,member_id,match_id,value,unit,achieved_at) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(guild_id,metric) DO UPDATE SET member_id=excluded.member_id,match_id=excluded.match_id,value=excluded.value,unit=excluded.unit,achieved_at=excluded.achieved_at,updated_at=now()",
+            [
+              guild.id,
+              r.metric,
+              r.memberId,
+              r.matchId,
+              r.value,
+              r.unit,
+              r.achievedAt,
+            ],
           );
           if (r.value > 0)
             newRecords.push({ ...r, previous: old ? Number(old.value) : null });
@@ -81,8 +89,8 @@ export async function reconcile(db: Database) {
           a = aggregate(personal);
         for (const r of advancedRecords(personal, [member], events, cfg))
           await q.query(
-            "INSERT INTO personal_records(member_id,metric,match_id,value,unit) VALUES($1,$2,$3,$4,$5) ON CONFLICT(member_id,metric) DO UPDATE SET match_id=excluded.match_id,value=excluded.value,unit=excluded.unit WHERE personal_records.value<excluded.value",
-            [member.id, r.metric, r.matchId, r.value, r.unit],
+            "INSERT INTO personal_records(member_id,metric,match_id,value,unit,achieved_at) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(member_id,metric) DO UPDATE SET match_id=excluded.match_id,value=excluded.value,unit=excluded.unit,achieved_at=excluded.achieved_at WHERE personal_records.value<excluded.value",
+            [member.id, r.metric, r.matchId, r.value, r.unit, r.achievedAt],
           );
         if (!cfg.achievements) continue;
         for (const rule of cfg.achievementRules) {
@@ -179,6 +187,11 @@ export async function reconcile(db: Database) {
       await q.query(
         "DELETE FROM audit_log WHERE guild_id=$1 AND created_at<now()-($2::text || ' days')::interval",
         [guild.id, cfg.retentionDays],
+      );
+      // Names only serve delivery/retry of this match; never retain an opponent history.
+      await q.query(
+        "UPDATE notifications SET payload=payload-'scoreboard' WHERE guild_id=$1 AND kind='match' AND payload ? 'scoreboard' AND sent_at<now()-interval '7 days'",
+        [guild.id],
       );
     });
 }

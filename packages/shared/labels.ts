@@ -1,4 +1,6 @@
 export const labels: Record<string, string> = {
+  wichscounter: "Wichscounter",
+  Wichscounter: "Wichscounter",
   totals: "Gesamtwerte",
   perMatch: "Pro Match",
   coverage: "Matches mit Messwert",

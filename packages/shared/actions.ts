@@ -291,7 +291,7 @@ export async function action(
           .filter(Boolean)
           .map((d) => members.find((m) => m.discord_id === d)?.id ?? "missing");
     const events = await repo.db.query<EventRow>(
-      "SELECT e.match_id,e.type,e.data FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
+      "SELECT e.match_id,e.type,e.data,e.occurred_at FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
       [guild],
     );
     return teamStats(allRows, members, events, chosen, filter, cfg);
@@ -306,11 +306,12 @@ export async function action(
       type: string;
       data: Record<string, unknown>;
     }>(
-      "SELECT e.match_id,e.type,e.data FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
+      "SELECT e.match_id,e.type,e.data,e.occurred_at FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
       [guild],
     );
     return {
       ...aggregate(personal),
+      member: members.find((m) => m.id === id)?.display_name ?? "Mitglied",
       events: observedEventStats(
         events.filter((e) => matchIds.has(e.match_id)),
         new Set(members.find((m) => m.id === id)?.identities ?? []),
@@ -339,7 +340,7 @@ export async function action(
       )
     ) {
       const events = await repo.db.query<EventRow>(
-        "SELECT e.match_id,e.type,e.data FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
+        "SELECT e.match_id,e.type,e.data,e.occurred_at FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
         [guild],
       );
       const result = [];
@@ -391,7 +392,7 @@ export async function action(
   }
   if (name === "records") {
     const events = await repo.db.query<EventRow>(
-      "SELECT e.match_id,e.type,e.data FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
+      "SELECT e.match_id,e.type,e.data,e.occurred_at FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
       [guild],
     );
     return {
@@ -405,7 +406,7 @@ export async function action(
         [guild, filter.memberId ?? null],
       ),
       manual: await repo.db.query(
-        "SELECT * FROM manual_records WHERE guild_id=$1 ORDER BY created_at DESC",
+        "SELECT r.*,m.display_name FROM manual_records r JOIN members m ON m.id=r.member_id WHERE r.guild_id=$1 ORDER BY r.created_at DESC",
         [guild],
       ),
     };

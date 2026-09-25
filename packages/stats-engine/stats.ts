@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import { playlist } from "../shared/playlists.js";
 import {
   metrics,
   type Player,
@@ -133,6 +134,7 @@ export function aggregate(rows: Observation[]) {
   const shootingGoals = shootingRows.reduce((n, r) => n + r.stats.Goals!, 0),
     shootingShots = shootingRows.reduce((n, r) => n + r.stats.Shots!, 0);
   return {
+    wichscounter: wichscounter(rows),
     matches,
     wins,
     losses,
@@ -154,6 +156,27 @@ export function aggregate(rows: Observation[]) {
     otWins,
     otLosses,
   };
+}
+/** Derived per member/match, never a mutable counter. Multiple identities count once.
+ * Conservative max score prevents a stale low snapshot counting a corrected result. */
+export function wichscounter(rows: Observation[]) {
+  const final = new Map<string, number>();
+  for (const row of rows) {
+    const s = row.state;
+    if (
+      s.status !== "complete" ||
+      s.quality !== "complete" ||
+      !s.sawEnd ||
+      !s.endedAt ||
+      s.game.bReplay ||
+      playlist(s.game.PlaylistId)?.teamSize !== 3 ||
+      row.stats.Score === undefined
+    )
+      continue;
+    const key = `${row.member_id}:${row.match_id}`;
+    final.set(key, Math.max(final.get(key) ?? 0, row.stats.Score));
+  }
+  return [...final.values()].filter((score) => score < 300).length;
 }
 export function sessions(rows: Observation[], timeout: number) {
   const matches = [...new Map(rows.map((r) => [r.match_id, r])).values()].sort(
@@ -185,7 +208,13 @@ export function sessions(rows: Observation[], timeout: number) {
 }
 export function records(rows: Observation[], members: Member[]) {
   return metrics.flatMap((metric) => {
-    const valid = rows.filter((r) => r.stats[metric] !== undefined);
+    const valid = rows
+      .filter((r) => r.stats[metric] !== undefined)
+      .sort((a, b) =>
+        (a.state.endedAt ?? a.state.startedAt).localeCompare(
+          b.state.endedAt ?? b.state.startedAt,
+        ),
+      );
     if (!valid.length) return [];
     const best = valid.reduce((a, b) =>
       Number(a.stats[metric]) >= Number(b.stats[metric]) ? a : b,
@@ -200,6 +229,7 @@ export function records(rows: Observation[], members: Member[]) {
           "Gelöscht",
         matchId: best.match_id,
         automatic: true,
+        achievedAt: best.state.endedAt ?? best.state.startedAt,
       },
     ];
   });
@@ -224,7 +254,9 @@ export function leaderboard(
               ? a.wins
               : metric === "streak"
                 ? a.bestWinStreak
-                : (a.totals[metric] ?? null);
+                : metric === "Wichscounter"
+                  ? a.wichscounter
+                  : (a.totals[metric] ?? null);
       return {
         member: m.display_name,
         memberId: m.id,

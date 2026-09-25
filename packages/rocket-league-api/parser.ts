@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { finalScoreboard } from "../shared/scoreboard.js";
 import {
   envelope,
   playerSchema,
@@ -76,6 +77,10 @@ export function sanitize(
   const guid = matchGuid(event);
   if (!guid) return { Event: event.Event, Data };
   Data.MatchGuid = guid;
+  if (["MatchEnded", "MatchDestroyed"].includes(event.Event)) {
+    const board = finalScoreboard(raw.FinalScoreboard);
+    if (board.length) Data.FinalScoreboard = board;
+  }
   if (event.Event === "UpdateState") {
     const players = statePlayers(event, report);
     const invalid = invalidPlayers(event);

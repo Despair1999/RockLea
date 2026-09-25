@@ -22,6 +22,7 @@ export type AutomaticRecord = {
   matchId: string;
   automatic: true;
   unit: string;
+  achievedAt: string;
 };
 export function advancedRecords(
   rows: Observation[],
@@ -36,7 +37,9 @@ export function advancedRecords(
     unit: "count",
   }));
   for (const member of members) {
-    const own = rows.filter((r) => r.member_id === member.id);
+    const own = rows
+      .filter((r) => r.member_id === member.id)
+      .sort((a, b) => a.state.startedAt.localeCompare(b.state.startedAt));
     if (!own.length) continue;
     const identityIds = new Set(own.map((r) => r.stats.PrimaryId));
     const add = (
@@ -44,6 +47,7 @@ export function advancedRecords(
       value: number,
       matchId: string,
       unit = "count",
+      achievedAt?: string,
     ) =>
       results.push({
         metric,
@@ -52,10 +56,20 @@ export function advancedRecords(
         member: member.display_name,
         matchId,
         unit,
+        achievedAt:
+          achievedAt ??
+          own.find((r) => r.match_id === matchId)?.state.endedAt ??
+          own.find((r) => r.match_id === matchId)!.state.startedAt,
         automatic: true,
       });
-    const a = aggregate(own);
-    add("BestWinStreak", Number(a.bestWinStreak), own.at(-1)!.match_id);
+    let streak = 0;
+    for (const row of own) {
+      streak =
+        row.state.winner !== undefined && row.state.winner === row.stats.TeamNum
+          ? streak + 1
+          : 0;
+      add("BestWinStreak", streak, row.match_id);
+    }
     const days = new Map<string, Observation[]>();
     for (const row of own) {
       const day = DateTime.fromISO(row.state.startedAt)
@@ -65,7 +79,15 @@ export function advancedRecords(
     }
     for (const group of days.values()) {
       const daily = aggregate(group);
-      add("DailyWins", daily.wins, group.at(-1)!.match_id);
+      let dailyWins = 0;
+      for (const row of group) {
+        if (
+          row.state.winner !== undefined &&
+          row.state.winner === row.stats.TeamNum
+        )
+          dailyWins++;
+        add("DailyWins", dailyWins, row.match_id);
+      }
       if (daily.matches >= cfg.minimumMatches && daily.winrate !== null)
         add("DailyWinrate", daily.winrate, group.at(-1)!.match_id, "%");
     }
@@ -80,7 +102,13 @@ export function advancedRecords(
         identityIds.has(scorer.PrimaryId) &&
         typeof e.data.GoalSpeed === "number"
       )
-        add("FastestGoal", e.data.GoalSpeed, e.match_id, "Unreal Units/second");
+        add(
+          "FastestGoal",
+          e.data.GoalSpeed,
+          e.match_id,
+          "Unreal Units/second",
+          e.occurred_at?.toISOString(),
+        );
       const ball = e.data.Ball as { PostHitSpeed?: number } | undefined;
       if (
         e.type === "BallHit" &&
@@ -93,6 +121,7 @@ export function advancedRecords(
           ball.PostHitSpeed,
           e.match_id,
           "Unreal Units/second",
+          e.occurred_at?.toISOString(),
         );
     }
   }
@@ -100,7 +129,12 @@ export function advancedRecords(
   for (const r of results) {
     if (!cfg.recordMetrics.includes(r.metric)) continue;
     const old = best.get(r.metric);
-    if (!old || r.value > old.value) best.set(r.metric, r);
+    if (
+      !old ||
+      r.value > old.value ||
+      (r.value === old.value && r.achievedAt < old.achievedAt)
+    )
+      best.set(r.metric, r);
   }
   return [...best.values()];
 }
@@ -149,12 +183,10 @@ export function teamStats(
 export function relationships(players: Record<string, Player>) {
   const values = Object.values(players);
   return values.flatMap((a, i) =>
-    values
-      .slice(i + 1)
-      .map((b) => ({
-        first: a.PrimaryId,
-        second: b.PrimaryId,
-        relationship: a.TeamNum === b.TeamNum ? "same_team" : "opponent",
-      })),
+    values.slice(i + 1).map((b) => ({
+      first: a.PrimaryId,
+      second: b.PrimaryId,
+      relationship: a.TeamNum === b.TeamNum ? "same_team" : "opponent",
+    })),
   );
 }

@@ -1,0 +1,134 @@
+[
+  {
+    "color": 6918143,
+    "title": "Match beendet · Ranked 1v1",
+    "footer": {
+      "text": "RockLea · Vollständiges Match · Finales Scoreboard · MMR nicht verfügbar"
+    },
+    "timestamp": "2026-09-23T20:00:00.000Z",
+    "description": "Blau **4** : Orange **2**\nStadium\\_P",
+    "fields": [
+      {
+        "name": "🔵 Blau",
+        "value": "**Niklas** · **721** Punkte\nT 3 · A 1 · P 0 · S 4\n",
+        "inline": false
+      },
+      {
+        "name": "🟠 Orange",
+        "value": "**Orbit** · **460** Punkte\nT 1 · A 1 · P 0 · S 4\n",
+        "inline": false
+      },
+      {
+        "name": "Scoreboard",
+        "value": "T Tore · A Assists · P Paraden · S Schüsse · D Demos\n— = nicht gemessen",
+        "inline": false
+      }
+    ]
+  },
+  {
+    "color": 6918143,
+    "title": "Match beendet · Ranked 3v3",
+    "footer": {
+      "text": "RockLea · Vollständiges Match · Finales Scoreboard · MMR nicht verfügbar"
+    },
+    "timestamp": "2026-09-23T20:00:00.000Z",
+    "description": "Blau **4** : Orange **2**\nStadium\\_P",
+    "fields": [
+      {
+        "name": "🔵 Blau",
+        "value": "**Niklas** · **721** Punkte\nT 3 · A 1 · P 0 · S 4\n**Max** · **530** Punkte\nT 1 · A 1 · P 1 · S 4\n**Lena** · **299** Punkte\nT 0 · A 1 · P 2 · S 4\n",
+        "inline": false
+      },
+      {
+        "name": "🟠 Orange",
+        "value": "**Orbit** · **460** Punkte\nT 1 · A 1 · P 0 · S 4\n**Nova** · **230** Punkte\nT 0 · A 1 · P 1 · S 4\n**Blaze** · **180** Punkte\nT 1 · A 1 · P 2 · S 4\n",
+        "inline": false
+      },
+      {
+        "name": "Scoreboard",
+        "value": "T Tore · A Assists · P Paraden · S Schüsse · D Demos\n— = nicht gemessen",
+        "inline": false
+      }
+    ]
+  },
+  {
+    "color": 2148544,
+    "title": "📊 Niklas",
+    "footer": {
+      "text": "RockLea · — = nicht gemessen · Durchschnitte nur aus gemessenen Werten"
+    },
+    "timestamp": "2026-09-23T20:00:00.000Z",
+    "description": "**1 Matches** · 1 Siege · 0 Niederlagen\n**100 %** Winrate",
+    "fields": [
+      {
+        "name": "⚡ Pro Match",
+        "value": "Punkte **299**\nTore **3**\nAssists **1**\nParaden **2**\nSchüsse **6**",
+        "inline": true
+      },
+      {
+        "name": "🏁 Gesamt",
+        "value": "Punkte **299**\nTore **3**\nAssists **1**\nParaden **2**\nSchüsse **6**",
+        "inline": true
+      },
+      {
+        "name": "🎯 Trefferquote",
+        "value": "50 %",
+        "inline": true
+      },
+      {
+        "name": "🔥 Serien",
+        "value": "Siege aktuell **1** · Rekord **1**\nNiederlagen aktuell **0**",
+        "inline": false
+      },
+      {
+        "name": "⏱ Overtime",
+        "value": "**0** Matches · **0** Siege · **0** Niederlagen",
+        "inline": false
+      },
+      {
+        "name": "Wichscounter",
+        "value": "**1** · Beendete 3v3-Matches mit weniger als 300 Punkten",
+        "inline": false
+      },
+      {
+        "name": "Kontakte & Extras",
+        "value": "Ballkontakte **41**\nKarosseriekontakte **4**\nDemos **3**",
+        "inline": false
+      }
+    ]
+  },
+  {
+    "color": 15909723,
+    "title": "🏆 Serverrekorde",
+    "footer": {
+      "text": "RockLea · Gemeinsam besser spielen"
+    },
+    "timestamp": "2026-09-23T20:00:00.000Z",
+    "fields": [
+      {
+        "name": "Punkte",
+        "value": "**1.124 Punkte** · Max\n21.9.2026",
+        "inline": true
+      },
+      {
+        "name": "Tore",
+        "value": "**7 Tore** · Niklas\n23.9.2026",
+        "inline": true
+      },
+      {
+        "name": "Beste Siegesserie",
+        "value": "**8 Matches** · Lena\n22.9.2026",
+        "inline": true
+      }
+    ]
+  },
+  {
+    "color": 2148544,
+    "title": "🏅 Tore · Diese Woche",
+    "footer": {
+      "text": "RockLea · Gemeinsam besser spielen"
+    },
+    "timestamp": "2026-09-23T20:00:00.000Z",
+    "description": "**1. Niklas** · **32**\n12 Matches\n\n**2. Max** · **27**\n12 Matches\n\n**3. Lena** · **19**\n10 Matches"
+  }
+]

@@ -6,6 +6,10 @@ import {
   matchGuid,
   ambiguousReferences,
 } from "../../packages/rocket-league-api/parser.js";
+import {
+  projectScoreboard,
+  type ScoreboardPlayer,
+} from "../../packages/shared/scoreboard.js";
 import { type IssueReporter } from "../../packages/rocket-league-api/diagnostics.js";
 import {
   type Member,
@@ -16,6 +20,7 @@ import {
 /** Only sanitized snapshots may outlive the current callback. */
 export class CollectorStream {
   private observed: Player[] = [];
+  private scoreboard: ScoreboardPlayer[] = [];
   private pending?: Envelope;
   private lastTick = 0;
   private replay = false;
@@ -30,6 +35,7 @@ export class CollectorStream {
       this.replay = true;
       this.pending = undefined;
       this.observed = [];
+      this.scoreboard = [];
       this.guid = matchGuid(event);
       return [];
     }
@@ -41,6 +47,7 @@ export class CollectorStream {
       (this.guid !== undefined && guid !== this.guid)
     ) {
       this.observed = [];
+      this.scoreboard = [];
       this.blockedReferences.clear();
       this.pending = undefined;
       this.lastTick = 0;
@@ -64,6 +71,7 @@ export class CollectorStream {
       if (game?.bReplay === false) this.goalReplay = false;
       if (this.goalReplay) return [];
       this.observed = statePlayers(event, this.report);
+      this.scoreboard = projectScoreboard(event.Data.Players);
       this.blockedReferences = ambiguousReferences(event, this.observed);
     }
     if (
@@ -78,6 +86,11 @@ export class CollectorStream {
         ].includes(event.Event))
     )
       return [];
+    if (
+      ["MatchEnded", "MatchDestroyed"].includes(event.Event) &&
+      this.scoreboard.length
+    )
+      event.Data.FinalScoreboard = this.scoreboard;
     const clean = sanitize(
       event,
       members,

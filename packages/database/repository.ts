@@ -450,12 +450,17 @@ export class Repository {
           }
           if (s.endedAt && Object.keys(s.players).length)
             await q.query(
-              "INSERT INTO notifications(id,guild_id,key,kind,payload,available_at) VALUES($1,$2,$3,'match',$4,now()+interval '10 seconds') ON CONFLICT(guild_id,key) DO UPDATE SET payload=excluded.payload,sent_at=CASE WHEN $5 THEN NULL ELSE notifications.sent_at END",
+              "INSERT INTO notifications(id,guild_id,key,kind,payload,available_at) VALUES($1,$2,$3,'match',$4,now()+interval '10 seconds') ON CONFLICT(guild_id,key) DO UPDATE SET payload=notifications.payload || excluded.payload,sent_at=CASE WHEN $5 OR (excluded.payload ? 'scoreboard' AND notifications.payload->'scoreboard' IS DISTINCT FROM excluded.payload->'scoreboard') THEN NULL ELSE notifications.sent_at END",
               [
                 randomUUID(),
                 guild,
                 `match:${id}`,
-                JSON.stringify({ matchId: id }),
+                JSON.stringify({
+                  matchId: id,
+                  ...(s.sawEnd && clean.Data.FinalScoreboard
+                    ? { scoreboard: clean.Data.FinalScoreboard }
+                    : {}),
+                }),
                 Boolean(
                   previous?.state.endedAt &&
                   canonical({
@@ -638,6 +643,12 @@ export class Repository {
             await q.query("DELETE FROM match_events WHERE id=$1", [e.id]);
       }
       await q.query("DELETE FROM members WHERE id=$1", [member.id]);
+      // No stable identities in the board: remove the whole transient board for
+      // this guild rather than trying to match personal names heuristically.
+      await q.query(
+        "UPDATE notifications SET payload=payload-'scoreboard' WHERE guild_id=$1 AND kind='match'",
+        [guild],
+      );
       await q.query(
         "DELETE FROM notifications WHERE guild_id=$1 AND kind<>'match'",
         [guild],

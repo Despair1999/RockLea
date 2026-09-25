@@ -204,8 +204,11 @@ export const messages = {
     mmr: "MMR unavailable – no verified source connected.",
   },
 };
+import { playlist } from "./playlists.js";
 export function playlistName(id: number | undefined, config: GuildConfig) {
   return id === undefined
     ? "Playlist unbekannt"
-    : (config.playlistNames[String(id)] ?? `Unknown Playlist (ID ${id})`);
+    : (config.playlistNames[String(id)] ??
+        playlist(id)?.name ??
+        `Playlist ${id}`);
 }

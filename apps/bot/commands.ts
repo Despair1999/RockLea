@@ -248,6 +248,7 @@ const commands = [
             "matches",
             "streak",
             "GoalsPerMatch",
+            "Wichscounter",
             "FastestGoal",
             "StrongestBallHit",
             "MMR",

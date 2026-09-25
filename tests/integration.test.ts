@@ -36,6 +36,103 @@ afterAll(async () => {
   await db.close();
 });
 describe("PostgreSQL transactions and acceptance scenarios", () => {
+  it("keeps the full final scoreboard only in the delivery payload, deduplicates and expires it", async () => {
+    const { CollectorStream } = await import("../apps/collector/stream.js");
+    const g = "5566778899";
+    await repo.setup(g, actor.id);
+    await repo.addMember(g, actor.id, {
+      discordId: actor.id,
+      displayName: "Niklas",
+      name: "NiklasRL",
+      platform: "Epic",
+    });
+    const c = await repo.pair(
+      (await repo.pairCode(g, actor.id)).code,
+      "Scoreboard test",
+    );
+    const stream = new CollectorStream(),
+      members = await repo.members(g);
+    const emitted = fixture("full-scoreboard").flatMap((e, i) =>
+      stream.accept(JSON.stringify(e), members, 1000 + i * 100),
+    );
+    const batch = deliveries(emitted);
+    await repo.ingest(g, c.id, batch);
+    await repo.ingest(g, c.id, batch);
+    const notifications = await db.query<{
+      payload: { scoreboard?: unknown[] };
+    }>("SELECT payload FROM notifications WHERE guild_id=$1 AND kind='match'", [
+      g,
+    ]);
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0].payload.scoreboard).toHaveLength(4);
+    expect(JSON.stringify(notifications)).toContain("RandomPlayer1");
+    expect(JSON.stringify(notifications)).not.toContain("opponent-secret");
+    expect(JSON.stringify(await repo.matches(g))).not.toMatch(
+      /RandomPlayer|opponent-secret/,
+    );
+    expect(await repo.members(g)).toHaveLength(1);
+    expect(JSON.stringify(await repo.observations(g))).not.toMatch(
+      /RandomPlayer|opponent-secret/,
+    );
+    await db.query(
+      "UPDATE notifications SET sent_at=now()-interval '8 days' WHERE guild_id=$1",
+      [g],
+    );
+    await reconcile(db);
+    expect(
+      JSON.stringify(
+        await db.query("SELECT payload FROM notifications WHERE guild_id=$1", [
+          g,
+        ]),
+      ),
+    ).not.toContain("RandomPlayer");
+  });
+  it("preserves record achievement dates for ties and updates only on improvement", async () => {
+    const g = "5566778811";
+    await repo.setup(g, actor.id);
+    await repo.addMember(g, actor.id, {
+      discordId: actor.id,
+      displayName: "Niklas",
+      name: "NiklasRL",
+      platform: "Epic",
+    });
+    const c = await repo.pair(
+      (await repo.pairCode(g, actor.id)).code,
+      "Record dates",
+    );
+    const play = async (score: number, index: number) => {
+      const events = fixture(`record-date-${index}`);
+      events.forEach((e) => {
+        if (e.Event === "UpdateState")
+          (e.Data.Players as { Score: number }[])[0].Score = score;
+      });
+      const d = deliveries(events).map((x, i) => ({
+        ...x,
+        occurredAt: new Date(
+          Date.UTC(2026, 0, index + 1, 0, 0, i),
+        ).toISOString(),
+      }));
+      await repo.ingest(g, c.id, d);
+      await db.query(
+        "UPDATE matches SET updated_at=now()-interval '20 seconds' WHERE guild_id=$1",
+        [g],
+      );
+      await reconcile(db);
+      return (
+        await db.query<{ value: number | string; achieved_at: Date }>(
+          "SELECT value,achieved_at FROM automatic_records WHERE guild_id=$1 AND metric='Score'",
+          [g],
+        )
+      )[0];
+    };
+    const first = await play(800, 0);
+    expect(first.achieved_at).toBeTruthy();
+    expect(await play(800, 1)).toEqual(first);
+    expect(await play(500, 2)).toEqual(first);
+    const better = await play(900, 3);
+    expect(Number(better.value)).toBe(900);
+    expect(better.achieved_at).not.toEqual(first.achieved_at);
+  });
   it("processes tolerant live ticks through the offline outbox and authenticated API", async () => {
     const { CollectorStream } = await import("../apps/collector/stream.js");
     const { Outbox, flush } = await import("../apps/collector/outbox.js");
