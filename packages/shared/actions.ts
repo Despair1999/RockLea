@@ -284,6 +284,14 @@ export async function action(
       members.find((m) => m.discord_id === args.discordId)?.id ?? "missing";
   const allRows = await repo.observations(guild);
   const rows = select(allRows, filter, cfg);
+  if (name === "stats.boards")
+    return members
+      .filter((m) => m.active)
+      .map((m) => ({
+        memberId: m.id,
+        member: m.display_name,
+        stats: aggregate(rows.filter((r) => r.member_id === m.id)),
+      }));
   if (name === "stats.team") {
     const chosen = args.teamMembers
       ? z.array(z.string().uuid()).parse(args.teamMembers)

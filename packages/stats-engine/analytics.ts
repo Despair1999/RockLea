@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 import { type GuildConfig, type Member, type Player } from "../shared/model.js";
 import {
   aggregate,
+  resultRows,
   records,
   sessions,
   select,
@@ -30,6 +31,7 @@ export function advancedRecords(
   events: EventRow[],
   cfg: GuildConfig,
 ): AutomaticRecord[] {
+  rows = resultRows(rows);
   const results: AutomaticRecord[] = records(rows, members).map((r) => ({
     ...r,
     value: Number(r.value),

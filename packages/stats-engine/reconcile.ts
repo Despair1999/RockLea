@@ -8,7 +8,13 @@ import {
   type GuildConfig,
 } from "../shared/model.js";
 import { canonical, hash } from "../shared/crypto.js";
-import { aggregate, select, sessions, type Observation } from "./stats.js";
+import {
+  aggregate,
+  select,
+  sessions,
+  resultRows,
+  type Observation,
+} from "./stats.js";
 import {
   advancedRecords,
   type EventRow,
@@ -27,7 +33,10 @@ async function queue(
   );
 }
 export async function reconcile(db: Database) {
-  for (const guild of await db.query<{ id: string }>("SELECT id FROM guilds"))
+  for (const guild of await db.query<{
+    id: string;
+    record_rebuild_pending: boolean;
+  }>("SELECT id,record_rebuild_pending FROM guilds"))
     await db.transaction(async (q) => {
       const cfg = configSchema.parse(
         (
@@ -38,9 +47,11 @@ export async function reconcile(db: Database) {
         )[0].config,
       );
       const members = await roster(q, guild.id);
-      const rows = await q.query<Observation>(
-        `SELECT mm.member_id,mm.stats,m.state,m.id match_id FROM match_members mm JOIN matches m ON m.id=mm.match_id WHERE m.guild_id=$1 AND m.ended_at IS NOT NULL AND m.updated_at<now()-interval '10 seconds' ORDER BY m.started_at`,
-        [guild.id],
+      const rows = resultRows(
+        await q.query<Observation>(
+          `SELECT mm.member_id,mm.stats,m.state,m.id match_id FROM match_members mm JOIN matches m ON m.id=mm.match_id WHERE m.guild_id=$1 AND m.ended_at IS NOT NULL AND m.updated_at<now()-interval '10 seconds' ORDER BY m.started_at`,
+          [guild.id],
+        ),
       );
       const events = await q.query<EventRow>(
         "SELECT e.match_id,e.type,e.data,e.occurred_at FROM match_events e JOIN matches m ON m.id=e.match_id WHERE m.guild_id=$1",
@@ -71,7 +82,7 @@ export async function reconcile(db: Database) {
             newRecords.push({ ...r, previous: old ? Number(old.value) : null });
         }
       }
-      if (cfg.recordPosts && newRecords.length)
+      if (cfg.recordPosts && newRecords.length && !guild.record_rebuild_pending)
         await queue(
           q,
           guild.id,
@@ -79,6 +90,10 @@ export async function reconcile(db: Database) {
           "record",
           { records: newRecords },
         );
+      await q.query(
+        "UPDATE guilds SET record_rebuild_pending=false WHERE id=$1",
+        [guild.id],
+      );
       const awarded: {
         memberId: string;
         member: string;

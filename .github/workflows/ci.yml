@@ -68,7 +68,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download v0.2.0 --pattern RockLea-Setup.exe --dir (Join-Path $env:RUNNER_TEMP 'RockLeaPrevious')
+          gh release download v0.3.0 --pattern RockLea-Setup.exe --dir (Join-Path $env:RUNNER_TEMP 'RockLeaPrevious')
           if ($LASTEXITCODE -ne 0) { throw 'Could not obtain previous verified release.' }
           ./scripts/test-installer.ps1 -PreviousInstaller (Join-Path $env:RUNNER_TEMP 'RockLeaPrevious/RockLea-Setup.exe')
       - name: Package portable application and checksums
@@ -106,4 +106,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" release/RockLea-Setup.exe release/RockLea-Portable.zip release/SHA256SUMS.txt --verify-tag --title "RockLea $RELEASE_TAG" --notes-file docs/RELEASE_0.3.0.md
+        run: gh release create "$RELEASE_TAG" release/RockLea-Setup.exe release/RockLea-Portable.zip release/SHA256SUMS.txt --verify-tag --title "RockLea $RELEASE_TAG" --notes-file docs/RELEASE_0.3.1.md

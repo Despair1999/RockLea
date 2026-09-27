@@ -1,4 +1,4 @@
-# RockLea 0.3.0
+# RockLea 0.3.1
 
 Rocket-League-Statistiken für deinen Discord-Server als Windows-Anwendung.
 Ein Programm startet Backend, Discord-Bot, Collector und Dashboard automatisch.
@@ -58,6 +58,6 @@ Prüfungen: `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm test
 Windows-App bauen: `pnpm host:build`; Installer: Inno Setup mit `scripts/host-installer.iss`.
 `pnpm collector:build` erzeugt weiterhin den separaten Collector für Server-Deployments.
 
-Ein Tag `v0.3.0` startet die CI, baut und prüft Windows-Artefakte und veröffentlicht bei erfolgreichen Linux- und Windows-Jobs das GitHub Release. Versionsnummern vor künftigen Releases gemeinsam aktualisieren.
+Ein Tag `v0.3.1` startet die CI, baut und prüft Windows-Artefakte und veröffentlicht bei erfolgreichen Linux- und Windows-Jobs das GitHub Release. Versionsnummern vor künftigen Releases gemeinsam aktualisieren.
 
 [Installation](docs/INSTALLATION.md) · [Konfiguration](docs/CONFIGURATION.md) · [Fehlerhilfe](docs/TROUBLESHOOTING.md) · [Deployment und Backup](docs/DEPLOYMENT.md) · [Status und Grenzen](docs/STATUS.md) · [API](docs/ROCKET_LEAGUE_API.md)

@@ -10,13 +10,13 @@ using System.Runtime.InteropServices;
 
 [assembly: System.Reflection.AssemblyTitle("RockLea")]
 [assembly: System.Reflection.AssemblyProduct("RockLea")]
-[assembly: System.Reflection.AssemblyVersion("0.3.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("0.3.0.0")]
+[assembly: System.Reflection.AssemblyVersion("0.3.1.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.3.1.0")]
 namespace RockLea {
   static class Program {
     [DllImport("kernel32.dll")] static extern bool AttachConsole(int pid);
     [STAThread] static int Main(string[] args) {
-      if (Array.IndexOf(args,"--version")>=0) { AttachConsole(-1); Console.WriteLine("RockLea 0.3.0"); return 0; }
+      if (Array.IndexOf(args,"--version")>=0) { AttachConsole(-1); Console.WriteLine("RockLea 0.3.1"); return 0; }
       if (Array.IndexOf(args,"--no-autostart")>=0) { using(var key=Microsoft.Win32.Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run",true)) { if(key!=null)key.DeleteValue("RockLea",false); } return 0; }
       if (Array.IndexOf(args,"--smoke")>=0) return Smoke.Run();
       bool created; using(var mutex=new Mutex(true,"Local\\RockLea",out created)) {
@@ -36,7 +36,7 @@ namespace RockLea {
       Text="RockLea"; ClientSize=new Size(630,520); MinimumSize=new Size(646,559); StartPosition=FormStartPosition.CenterScreen;
       BackColor=Color.FromArgb(16,23,36); ForeColor=Color.WhiteSmoke; Font=new Font("Segoe UI",10); Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);
       Controls.Add(new Label{Text="RockLea",Font=new Font("Segoe UI",27,FontStyle.Bold),Location=new Point(28,20),AutoSize=true});
-      Controls.Add(new Label{Text="DEIN TEAM. EURE STATISTIK.    •    0.3.0",Location=new Point(30,76),AutoSize=true,ForeColor=Color.MediumAquamarine});
+      Controls.Add(new Label{Text="DEIN TEAM. EURE STATISTIK.    •    0.3.1",Location=new Point(30,76),AutoSize=true,ForeColor=Color.MediumAquamarine});
       status=new Label{Text="RockLea startet …",Location=new Point(30,119),Size=new Size(565,110),Font=new Font("Segoe UI",12)};Controls.Add(status);
       AddButton("Dashboard öffnen",30,242,Dashboard); AddButton("Einstellungen",225,242,()=>Send("settings"));AddButton("Logs öffnen",420,242,()=>OpenPath(Path.Combine(DataDir,"logs")));
       AddButton("Neu starten",30,287,()=>Send("restart"));AddButton("Backup erstellen",225,287,()=>Send("backup"));AddButton("Stats API einrichten",420,287,()=>Send("game-setup"));

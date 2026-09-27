@@ -21,6 +21,29 @@ export type Filter = {
   to?: string;
   teamMembers?: string[];
 };
+/** Finished, known outcomes; one result per member/match. */
+export function resultRows(rows: Observation[]) {
+  const unique = new Map<string, Observation>();
+  for (const r of rows) {
+    const s = r.state;
+    if (
+      !s.sawEnd ||
+      !s.endedAt ||
+      s.status !== "complete" ||
+      s.game.bReplay ||
+      ![0, 1].includes(s.winner ?? -1) ||
+      ![0, 1].includes(r.stats.TeamNum)
+    )
+      continue;
+    const key = `${r.member_id}:${r.match_id}`;
+    const previous = unique.get(key);
+    if (!previous || (r.stats.Score ?? -1) > (previous.stats.Score ?? -1))
+      unique.set(key, r);
+  }
+  return [...unique.values()].sort((a, b) =>
+    a.state.startedAt.localeCompare(b.state.startedAt),
+  );
+}
 export function range(
   filter: Filter,
   config: GuildConfig,
@@ -65,7 +88,7 @@ export function range(
 }
 export function select(rows: Observation[], f: Filter, c: GuildConfig) {
   const { from, to } = range(f, c);
-  return rows.filter((r) => {
+  return resultRows(rows).filter((r) => {
     const time = Date.parse(r.state.startedAt);
     if (
       time < from ||
@@ -90,6 +113,7 @@ export function select(rows: Observation[], f: Filter, c: GuildConfig) {
   });
 }
 export function aggregate(rows: Observation[]) {
+  rows = resultRows(rows);
   let wins = 0,
     losses = 0,
     winStreak = 0,
@@ -160,6 +184,7 @@ export function aggregate(rows: Observation[]) {
 /** Derived per member/match, never a mutable counter. Multiple identities count once.
  * Conservative max score prevents a stale low snapshot counting a corrected result. */
 export function wichscounter(rows: Observation[]) {
+  rows = resultRows(rows);
   const final = new Map<string, number>();
   for (const row of rows) {
     const s = row.state;
@@ -179,6 +204,7 @@ export function wichscounter(rows: Observation[]) {
   return [...final.values()].filter((score) => score < 300).length;
 }
 export function sessions(rows: Observation[], timeout: number) {
+  rows = resultRows(rows);
   const matches = [...new Map(rows.map((r) => [r.match_id, r])).values()].sort(
     (a, b) => a.state.startedAt.localeCompare(b.state.startedAt),
   );
@@ -207,6 +233,7 @@ export function sessions(rows: Observation[], timeout: number) {
   }));
 }
 export function records(rows: Observation[], members: Member[]) {
+  rows = resultRows(rows);
   return metrics.flatMap((metric) => {
     const valid = rows
       .filter((r) => r.stats[metric] !== undefined)

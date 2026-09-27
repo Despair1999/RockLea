@@ -105,7 +105,7 @@ export function statsEmbed(value: unknown, title = "Deine Statistik") {
     s = obj(v.stats ?? v.memberResults ?? v);
   const e = baseEmbed(`📊 ${v.member ? text(v.member, 80) : title}`);
   e.setDescription(
-    `**${number(v.memberResults ? v.matches : s.matches)} Matches** · ${number(s.wins)} Siege · ${number(s.losses)} Niederlagen\n**${number(s.winrate)} %** Winrate`,
+    `${v.memberResults ? `**${number(v.matches)} verschiedene Matches**\n**${number(s.matches)} Mitglieder-Ergebnisse**` : `**${number(s.matches)} Matches**`} · ${number(s.wins)} Siege · ${number(s.losses)} Niederlagen\n**${number(s.winrate)} %** Winrate`,
   );
   const per = obj(s.perMatch),
     total = obj(s.totals);

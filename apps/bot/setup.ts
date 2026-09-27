@@ -124,7 +124,7 @@ export async function setupInteraction(i: Interaction, api: InternalAPI) {
       const keys =
         page === "channels"
           ? ["matchfeed", "stats", "records", "leaderboard"]
-          : ["mmr", "sessions", "system"];
+          : ["mmr", "sessions", "system", "recordAnnouncements"];
       await i.reply({
         content:
           "Wähle bestehende Textkanäle. Mehrere Bereiche dürfen denselben Kanal verwenden.",

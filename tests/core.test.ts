@@ -175,7 +175,13 @@ describe("stats and ratings", () => {
       member_id: "m",
       match_id: "a",
       stats: state.players[niklas],
-      state: { ...state, endedAt: "2026-09-22T16:05:00Z" },
+      state: {
+        ...state,
+        sawEnd: true,
+        status: "complete" as const,
+        winner: 0,
+        endedAt: "2026-09-22T16:05:00Z",
+      },
     };
     const b = {
       ...a,

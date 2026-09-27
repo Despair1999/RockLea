@@ -36,6 +36,54 @@ afterAll(async () => {
   await db.close();
 });
 describe("PostgreSQL transactions and acceptance scenarios", () => {
+  it("all-time member and server boards exclude resultless matches without deleting history", async () => {
+    const g = "9911223344";
+    await repo.setup(g, actor.id);
+    for (const [discordId, name] of [
+      [actor.id, "NiklasRL"],
+      ["1000002", "MaxRL"],
+    ])
+      await repo.addMember(g, actor.id, {
+        discordId,
+        displayName: name,
+        name,
+        platform: "Epic",
+      });
+    const c = await repo.pair(
+      (await repo.pairCode(g, actor.id)).code,
+      "Lifetime boards",
+    );
+    await repo.ingest(g, c.id, deliveries(fixture("board-complete")));
+    await repo.ingest(
+      g,
+      c.id,
+      deliveries(
+        fixture("board-resultless").filter((e) => e.Event !== "MatchEnded"),
+      ),
+    );
+    const board = (await action(repo, g, actor, "stats.boards", {
+      period: "all",
+    })) as {
+      memberId: string;
+      stats: { matches: number; wins: number; losses: number };
+    }[];
+    expect(board).toHaveLength(2);
+    for (const member of board) {
+      expect(member.stats.matches).toBe(1);
+      expect(member.stats.wins + member.stats.losses).toBe(1);
+    }
+    const server = (await action(repo, g, actor, "stats.server", {
+      period: "all",
+    })) as {
+      matches: number;
+      memberResults: { matches: number; wins: number; losses: number };
+    };
+    expect(server.matches).toBe(1);
+    expect(server.memberResults.matches).toBe(2);
+    expect(server.memberResults.wins + server.memberResults.losses).toBe(2);
+    expect(await repo.matches(g)).toHaveLength(2);
+    await db.query("DELETE FROM guilds WHERE id=$1", [g]);
+  });
   it("keeps the full final scoreboard only in the delivery payload, deduplicates and expires it", async () => {
     const { CollectorStream } = await import("../apps/collector/stream.js");
     const g = "5566778899";
@@ -353,6 +401,13 @@ describe("PostgreSQL transactions and acceptance scenarios", () => {
     ).rejects.toThrow();
   });
   it("materializes records and achievements exactly once", async () => {
+    const c = await collector();
+    for (let i = 0; i < 5; i++)
+      await repo.ingest(
+        guild,
+        c.id,
+        deliveries(fixture(`completed-daily-${i}`)),
+      );
     await db.query("UPDATE matches SET updated_at=now()-interval '20 seconds'");
     await reconcile(db);
     const count = (await db.query("SELECT * FROM notifications")).length;

@@ -860,6 +860,7 @@ function App() {
                 "stats",
                 "leaderboard",
                 "records",
+                "recordAnnouncements",
                 "sessions",
                 "system",
               ].map((key) => (

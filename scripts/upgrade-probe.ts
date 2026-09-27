@@ -21,7 +21,7 @@ if (mode === "seed") {
   assert.equal(
     (
       await db.query(
-        "SELECT name FROM schema_migrations WHERE name LIKE '005%'",
+        "SELECT name FROM schema_migrations WHERE name LIKE '006%'",
       )
     ).length,
     0,
@@ -36,9 +36,9 @@ if (mode === "seed") {
     Data: { MatchGuid: "pending-offline-match" },
   });
   queue.close();
-  writeFileSync(join(dir, "data-version"), "0.2.0");
+  writeFileSync(join(dir, "data-version"), "0.3.0");
   console.log(
-    "Seeded installed 0.2.0 schema with synthetic DPAPI config/pairing, history and offline queue.",
+    "Seeded installed 0.3.0 schema with synthetic DPAPI config/pairing, history and offline queue.",
   );
 } else {
   const before = readFileSync(join(dir, "credentials.dpapi")),
@@ -55,7 +55,7 @@ if (mode === "seed") {
   assert.equal(
     (
       await db.query(
-        "SELECT name FROM schema_migrations WHERE name LIKE '005%'",
+        "SELECT name FROM schema_migrations WHERE name LIKE '006%'",
       )
     ).length,
     1,
@@ -65,6 +65,6 @@ if (mode === "seed") {
   assert.equal(queue.batch()[0].event.Data.MatchGuid, "pending-offline-match");
   queue.close();
   console.log(
-    "0.2.0 → 0.3.0: DPAPI configuration, pairing, database history and offline queue preserved; migration 005 applied.",
+    "0.3.0 → 0.3.1: DPAPI configuration, pairing, database history and offline queue preserved; migration 006 applied.",
   );
 }

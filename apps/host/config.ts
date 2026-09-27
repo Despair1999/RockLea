@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { protect } from "../collector/windows.js";
-export const VERSION = "0.3.0";
+export const VERSION = "0.3.1";
 export const hostConfig = z.object({
   discordToken: z.string().min(20).max(512),
   clientId: z.string().regex(/^\d{5,24}$/),

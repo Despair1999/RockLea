@@ -25,6 +25,12 @@ import {
   recordEmbeds,
 } from "../../packages/discord-ui/embeds.js";
 import { persistentMessage } from "../../packages/discord-ui/persistent-message.js";
+import {
+  memberBoard,
+  lifetimeLeaderboard,
+  splitRecordChannels,
+  type MemberBoard,
+} from "../../packages/discord-ui/boards.js";
 import { adminActions } from "../../packages/shared/actions.js";
 import {
   type GuildConfig,
@@ -428,10 +434,77 @@ export async function startDiscordBot(
       for (const guild of client.guilds.cache.values()) {
         try {
           const actor = { id: client.user!.id, admin: false };
-          const cfg = await api<GuildConfig>("action", {
+          let cfg = await api<GuildConfig>("action", {
             guild: guild.id,
             actor,
             action: "config.get",
+          });
+          try {
+            const channels = await splitRecordChannels(
+              cfg.channels,
+              async (name) => {
+                const available = await guild.channels.fetch();
+                const existing = available.find(
+                  (c) => c?.name === name && c.type === ChannelType.GuildText,
+                );
+                if (existing) return existing.id;
+                const parent = available.get(cfg.channels.records)?.parentId;
+                return (
+                  await guild.channels.create({
+                    name,
+                    type: ChannelType.GuildText,
+                    parent: parent ?? undefined,
+                    reason: "RockLea: Rekordtabelle und Meldungen trennen",
+                  })
+                ).id;
+              },
+            );
+            if (JSON.stringify(channels) !== JSON.stringify(cfg.channels)) {
+              if (channels.records !== cfg.channels.records) {
+                const previous = await api<{ message_id: string } | null>(
+                  "message",
+                  {
+                    guild: guild.id,
+                    key: "records:overview",
+                    channel: cfg.channels.records,
+                  },
+                );
+                const oldChannel = await client.channels.fetch(
+                  cfg.channels.records,
+                );
+                if (previous && oldChannel?.isSendable())
+                  await oldChannel.messages
+                    .edit(previous.message_id, {
+                      embeds: [
+                        recordEmbeds(
+                          [],
+                          "🏆 Rekordtabelle umgezogen",
+                        )[0].setDescription(
+                          `Die dauerhafte Rekordtabelle findest du jetzt in <#${channels.records}>. Hier erscheinen neue Rekordmeldungen.`,
+                        ),
+                      ],
+                      allowedMentions: { parse: [] },
+                    })
+                    .catch(() => {});
+              }
+              await api("action", {
+                guild: guild.id,
+                actor: { ...actor, admin: true },
+                action: "config.set",
+                args: { config: { channels } },
+              });
+              cfg = { ...cfg, channels };
+            }
+          } catch {
+            console.warn(
+              "Rekordkanäle konnten nicht getrennt werden. Bot benötigt Kanäle verwalten; Statistiken werden weiterhin aktualisiert.",
+            );
+          }
+          const memberValues = await api<MemberBoard[]>("action", {
+            guild: guild.id,
+            actor,
+            action: "stats.boards",
+            args: { period: "all" },
           });
           for (const kind of ["leaderboard", "stats", "records"] as const) {
             const channelId = cfg.channels[kind];
@@ -450,7 +523,7 @@ export async function startDiscordBot(
               action: kind === "stats" ? "stats.server" : kind,
               args: {
                 metric: "Goals",
-                period: kind === "records" ? "all" : "week",
+                period: "all",
               },
             });
             const old = await api<{ message_id: string } | null>("message", {
@@ -462,17 +535,50 @@ export async function startDiscordBot(
               channel,
               guild.id,
               key,
-              actionEmbeds(
-                kind === "stats" ? "stats.server" : kind,
-                values,
-                kind === "leaderboard"
-                  ? "Tore · Diese Woche"
-                  : kind === "records"
-                    ? "🏆 Serverrekorde · Allzeit"
-                    : "Serverstatistik · Diese Woche",
-              ).slice(0, 1),
+              kind === "leaderboard"
+                ? [lifetimeLeaderboard(memberValues)[0]]
+                : actionEmbeds(
+                    kind === "stats" ? "stats.server" : kind,
+                    values,
+                    kind === "records"
+                      ? "🏆 Serverrekorde · Allzeit"
+                      : "Serverstatistik · Allzeit",
+                  ).slice(0, 1),
               old,
             );
+            if (kind === "stats") {
+              for (const member of memberValues) {
+                const memberKey = `stats:member:${member.memberId}:all`;
+                const previous = await api<{ message_id: string } | null>(
+                  "message",
+                  { guild: guild.id, key: memberKey, channel: channel.id },
+                );
+                await persistMessage(
+                  channel,
+                  guild.id,
+                  memberKey,
+                  [memberBoard(member)],
+                  previous,
+                );
+              }
+            }
+            if (kind === "leaderboard") {
+              const boards = lifetimeLeaderboard(memberValues);
+              for (let i = 1; i < boards.length; i++) {
+                const pageKey = `leaderboard:all:${i}`;
+                const previous = await api<{ message_id: string } | null>(
+                  "message",
+                  { guild: guild.id, key: pageKey, channel: channel.id },
+                );
+                await persistMessage(
+                  channel,
+                  guild.id,
+                  pageKey,
+                  [boards[i]],
+                  previous,
+                );
+              }
+            }
           }
         } catch {
           console.warn(
@@ -524,6 +630,15 @@ export async function startDiscordBot(
         await persistMessage(channel, job.guild_id, key, [embed], existing);
       }
       if (job.kind !== "match") {
+        if (["record", "achievement"].includes(job.kind)) {
+          job.config = await api<GuildConfig>("action", {
+            guild: job.guild_id,
+            actor: { id: client.user!.id, admin: false },
+            action: "config.get",
+          });
+          if (!job.config.channels.recordAnnouncements)
+            throw new Error("Rekordkanäle noch nicht eingerichtet.");
+        }
         const category =
           job.kind === "goal"
             ? "matchfeed"
@@ -531,7 +646,7 @@ export async function startDiscordBot(
               ? "sessions"
               : job.kind === "recap"
                 ? "stats"
-                : "records";
+                : "recordAnnouncements";
         const channelId =
           job.config.channels[category] ?? job.config.channels.matchfeed;
         if (channelId) {
@@ -558,6 +673,7 @@ export async function startDiscordBot(
         }
       }
       await api("queue/ack", { id: job.id, ok: true });
+      if (job.kind === "match" || job.kind === "record") await refreshBoards();
     } catch {
       console.warn(
         JSON.stringify({
@@ -589,7 +705,7 @@ export async function startDiscordBot(
     client.destroy();
     throw error;
   }
-  const boardTimer = setInterval(() => void refreshBoards(), 60000);
+  const boardTimer = setInterval(() => void refreshBoards(), 30000);
   const timer = setInterval(() => {
     for (const [id, p] of pages) if (p.expires < Date.now()) pages.delete(id);
     void worker();
